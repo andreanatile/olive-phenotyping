@@ -1,9 +1,94 @@
 import cv2
 import numpy as np
 import os
-from src.utils.labeling import visualize_yolo_labels
 
-# --- Core Modules ---
+
+def visualize_yolo_labels(base_folder):
+    """
+    Reads images and YOLO labels from subfolders 'images' and 'labels'
+    and saves images with bounding boxes drawn in a new 'labeled' subfolder.
+
+    Args:
+        base_folder (str): The directory containing the 'images' and 'labels' subfolders
+                           (e.g., 'tiled_yolo_dataset').
+    """
+
+    # --- 1. Define Paths and Setup ---
+    image_dir = os.path.join(base_folder, "images")
+    label_dir = os.path.join(base_folder, "labels")
+    output_dir = os.path.join(base_folder, "labeled")  # New output subfolder
+
+    # Check if input folders exist
+    if not os.path.isdir(image_dir) or not os.path.isdir(label_dir):
+        print(
+            f"Error: Required subfolders 'images' and 'labels' not found in {base_folder}."
+        )
+        return
+
+    # Create the output folder
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"--- Starting Label Visualization in {base_folder} ---")
+
+    # --- 2. Process Files ---
+    processed_count = 0
+
+    for file_name in os.listdir(image_dir):
+        if file_name.lower().endswith((".jpg", ".jpeg", ".png")):
+
+            base_name = os.path.splitext(file_name)[0]
+            image_path = os.path.join(image_dir, file_name)
+            label_path = os.path.join(label_dir, base_name + ".txt")
+            output_path = os.path.join(output_dir, file_name)
+
+            # Load image
+            img = cv2.imread(image_path)
+            if img is None:
+                print(f"Skipping {file_name}: Could not load image.")
+                continue
+
+            H, W, _ = img.shape
+
+            # --- 3. Read and Draw Labels ---
+            if os.path.exists(label_path):
+                with open(label_path, "r") as f:
+                    for line in f:
+                        try:
+                            # YOLO format: class_id x_center y_center width height (all normalized 0-1)
+                            _, x_c, y_c, w, h = map(float, line.strip().split())
+
+                            # Denormalize to absolute pixel coordinates
+                            x_center = int(x_c * W)
+                            y_center = int(y_c * H)
+                            box_w = int(w * W)
+                            box_h = int(h * H)
+
+                            # Calculate corners (x_min, y_min, x_max, y_max)
+                            x_min = int(x_center - box_w / 2)
+                            y_min = int(y_center - box_h / 2)
+                            x_max = int(x_center + box_w / 2)
+                            y_max = int(y_center + box_h / 2)
+
+                            # Draw the rectangle (color is BGR format: Blue is [255, 0, 0])
+                            # Thickness is set to 2
+                            cv2.rectangle(
+                                img, (x_min, y_min), (x_max, y_max), (255, 0, 0), 2
+                            )
+
+                            # Optional: Draw the class ID label (just using a small black filled rectangle)
+                            # cv2.putText(img, str(class_id), (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+
+                        except ValueError:
+                            print(f"Skipping malformed line in {base_name}.txt")
+                            continue
+
+            # --- 4. Save Annotated Image ---
+            cv2.imwrite(output_path, img)
+            processed_count += 1
+
+    print(
+        f"--- Visualization Complete: {processed_count} images saved to {output_dir} ---"
+    )
 
 
 def denormalize_yolo_to_abs(line, W, H):
@@ -38,8 +123,8 @@ def denormalize_yolo_to_abs(line, W, H):
     return [class_id, x_min, y_min, x_max, y_max], class_id
 
 
-def process_tile_labels(
-    original_labels, tile_bbox, tile_size, x_start, y_start, area_threshold=0.1
+def process_sclice_labels(
+    original_labels, slice_bbox, slice_size, x_start, y_start, area_threshold=0.1
 ):
     """
     Calculates the new YOLO labels for a single tile based on object intersection.
@@ -49,10 +134,10 @@ def process_tile_labels(
     for class_id, x_min_orig, y_min_orig, x_max_orig, y_max_orig in original_labels:
 
         # 1. Intersection (Clipping)
-        x_min_clip = max(x_min_orig, tile_bbox[0])
-        y_min_clip = max(y_min_orig, tile_bbox[1])
-        x_max_clip = min(x_max_orig, tile_bbox[2])
-        y_max_clip = min(y_max_orig, tile_bbox[3])
+        x_min_clip = max(x_min_orig, slice_bbox[0])
+        y_min_clip = max(y_min_orig, slice_bbox[1])
+        x_max_clip = min(x_max_orig, slice_bbox[2])
+        y_max_clip = min(y_max_orig, slice_bbox[3])
 
         intersection_w = x_max_clip - x_min_clip
         intersection_h = y_max_clip - y_min_clip
@@ -79,10 +164,10 @@ def process_tile_labels(
             x_c_tile = x_min_tile + w_tile / 2
             y_c_tile = y_min_tile + h_tile / 2
 
-            x_c_norm = x_c_tile / tile_size
-            y_c_norm = y_c_tile / tile_size
-            w_norm = w_tile / tile_size
-            h_norm = h_tile / tile_size
+            x_c_norm = x_c_tile / slice_size
+            y_c_norm = y_c_tile / slice_size
+            w_norm = w_tile / slice_size
+            h_norm = h_tile / slice_size
 
             # Append the new label string
             new_labels.append(
@@ -95,9 +180,11 @@ def process_tile_labels(
 # --- Main Folder Processing Function ---
 
 
-def process_folder(data_dir, output_dir, tile_size=640, overlap_ratio=0.2):
+def slice_folder(
+    data_dir, output_dir, slice_size=640, overlap_ratio=0.2, area_threshold=0.1
+):
     """
-    The main command to tile all images and labels in a folder.
+    The main command to slice all images and labels in a folder.
 
     Args:
         data_dir (str): Base directory containing 'images' and 'labels' subfolders.
@@ -120,10 +207,10 @@ def process_folder(data_dir, output_dir, tile_size=640, overlap_ratio=0.2):
     os.makedirs(output_label_dir, exist_ok=True)
 
     # Calculate required parameters
-    stride = int(tile_size * (1 - overlap_ratio))
+    stride = int(slice_size * (1 - overlap_ratio))
     processed_count = 0
 
-    print(f"--- Starting Tiling Process: Tile Size={tile_size}, Stride={stride} ---")
+    print(f"--- Starting Tiling Process: Tile Size={slice_size}, Stride={stride} ---")
 
     for file_name in os.listdir(image_dir):
         if file_name.lower().endswith((".jpg", ".jpeg", ".png")):
@@ -143,8 +230,8 @@ def process_folder(data_dir, output_dir, tile_size=640, overlap_ratio=0.2):
             H, W, _ = img.shape
 
             # Calculate the number of tiles needed
-            num_x = int(np.ceil((W - tile_size) / stride)) + 1
-            num_y = int(np.ceil((H - tile_size) / stride)) + 1
+            num_x = int(np.ceil((W - slice_size) / stride)) + 1
+            num_y = int(np.ceil((H - slice_size) / stride)) + 1
 
             original_labels = []
             try:
@@ -162,10 +249,10 @@ def process_folder(data_dir, output_dir, tile_size=640, overlap_ratio=0.2):
             for i in range(num_x):
                 for j in range(num_y):
                     # Calculate tile boundaries
-                    x_start = min(i * stride, W - tile_size)
-                    y_start = min(j * stride, H - tile_size)
-                    x_end = x_start + tile_size
-                    y_end = y_start + tile_size
+                    x_start = min(i * stride, W - slice_size)
+                    y_start = min(j * stride, H - slice_size)
+                    x_end = x_start + slice_size
+                    y_end = y_start + slice_size
 
                     # Crop image
                     tile_img = img[y_start:y_end, x_start:x_end]
@@ -178,8 +265,13 @@ def process_folder(data_dir, output_dir, tile_size=640, overlap_ratio=0.2):
 
                     # Process and save labels
                     tile_bbox = [x_start, y_start, x_end, y_end]
-                    new_labels = process_tile_labels(
-                        original_labels, tile_bbox, tile_size, x_start, y_start
+                    new_labels = process_sclice_labels(
+                        original_labels,
+                        tile_bbox,
+                        slice_size,
+                        x_start,
+                        y_start,
+                        area_threshold,
                     )
 
                     if new_labels:
@@ -194,20 +286,3 @@ def process_folder(data_dir, output_dir, tile_size=640, overlap_ratio=0.2):
     print(f"--- Tiling Complete: {processed_count} images processed. ---")
     visualize_yolo_labels(output_dir)
     print(f"--- Label Visualization Complete ---")
-
-
-# --- Example Execution (The Single Command) ---
-
-if __name__ == "__main__":
-    # Define your folder paths
-    BASE_DATA_DIR = "/home/girobat/OlivePG/optim_dataset/bbox_ground_truth_half_original"  # Input folder
-    OUTPUT_DIR = "/home/girobat/OlivePG/optim_dataset/bbox_ground_truth_half_tiled"  # Output folder
-
-    # Example: Running the function for the entire folder
-    # Assuming BASE_DATA_DIR has 'images' and 'labels' subfolders
-    process_folder(
-        data_dir=BASE_DATA_DIR,
-        output_dir=OUTPUT_DIR,
-        tile_size=640,  # The target size for YOLO model
-        overlap_ratio=0.2,  # 20% overlap
-    )

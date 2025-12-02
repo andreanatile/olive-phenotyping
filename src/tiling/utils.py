@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+from src.utils.labeling import visualize_yolo_labels
 
 # --- Core Modules ---
 
@@ -191,14 +192,16 @@ def process_folder(data_dir, output_dir, tile_size=640, overlap_ratio=0.2):
             print(f"✅ Processed {file_name} ({W}x{H}) into {num_x * num_y} tiles.")
 
     print(f"--- Tiling Complete: {processed_count} images processed. ---")
+    visualize_yolo_labels(output_dir)
+    print(f"--- Label Visualization Complete ---")
 
 
 # --- Example Execution (The Single Command) ---
 
 if __name__ == "__main__":
     # Define your folder paths
-    BASE_DATA_DIR = "my_yolo_dataset_original"  # Input folder
-    OUTPUT_DIR = "tiled_yolo_dataset"  # Output folder
+    BASE_DATA_DIR = "/home/girobat/OlivePG/optim_dataset/bbox_ground_truth_half_original"  # Input folder
+    OUTPUT_DIR = "/home/girobat/OlivePG/optim_dataset/bbox_ground_truth_half_tiled"  # Output folder
 
     # Example: Running the function for the entire folder
     # Assuming BASE_DATA_DIR has 'images' and 'labels' subfolders

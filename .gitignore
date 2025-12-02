@@ -4,3 +4,4 @@ resources
 .vscode
 Corrected
 data
+__pycache__/

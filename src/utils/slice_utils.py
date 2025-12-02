@@ -181,7 +181,12 @@ def process_sclice_labels(
 
 
 def slice_folder(
-    data_dir, output_dir, slice_size=640, overlap_ratio=0.2, area_threshold=0.1
+    data_dir,
+    output_dir,
+    slice_size=640,
+    overlap_ratio=0.2,
+    area_threshold=0.1,
+    keep_empty_slice=False,
 ):
     """
     The main command to slice all images and labels in a folder.
@@ -254,15 +259,6 @@ def slice_folder(
                     x_end = x_start + slice_size
                     y_end = y_start + slice_size
 
-                    # Crop image
-                    tile_img = img[y_start:y_end, x_start:x_end]
-                    tile_name = f"{base_name}_tile_{i}_{j}"
-
-                    # Save image tile
-                    cv2.imwrite(
-                        os.path.join(output_img_dir, f"{tile_name}.jpg"), tile_img
-                    )
-
                     # Process and save labels
                     tile_bbox = [x_start, y_start, x_end, y_end]
                     new_labels = process_sclice_labels(
@@ -274,11 +270,25 @@ def slice_folder(
                         area_threshold,
                     )
 
+                    if not new_labels and not keep_empty_slice:
+                        print(f"Skipping empty tile at ({i}, {j}) for {file_name}")
+                        continue  # Skip tiles with no valid labels
+
+                    # Set slice name and crop the image
+                    slice_img = img[y_start:y_end, x_start:x_end]
+                    slice_name = f"{base_name}_tile_{i}_{j}"
+
+                    # Save label file if there are labels
                     if new_labels:
                         with open(
-                            os.path.join(output_label_dir, f"{tile_name}.txt"), "w"
+                            os.path.join(output_label_dir, f"{slice_name}.txt"), "w"
                         ) as f:
                             f.write("\n".join(new_labels))
+
+                    # Save image slice
+                    cv2.imwrite(
+                        os.path.join(output_img_dir, f"{slice_name}.jpg"), slice_img
+                    )
 
             processed_count += 1
             print(f"✅ Processed {file_name} ({W}x{H}) into {num_x * num_y} tiles.")

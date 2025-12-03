@@ -90,14 +90,46 @@ class Yolo11Detector(BaseModel):
         Additional training parameters can be passed via kwargs.
         """
         
-        metrics = self.model.train(
+        metrics_object = self.model.train(
             data=args.yaml_path,
             batch=args.batch_size,
             imgsz=args.image_size,
+            seed=args.seed,
+            epochs=args.epochs,
+            patience=args.patience,
         )
 
-        if metrics:
-            print(json.dumps(metrics, indent=4))
+        # Ensure a metrics object was returned (training completed successfully)
+        if metrics_object:
+            # Check if the returned object has the 'results_dict' property
+            if hasattr(metrics_object, 'results_dict'):
+                # This is the recommended way to get all metrics (mAP50, mAP50-95, loss components, etc.)
+                serializable_metrics = metrics_object.results_dict
+                
+            # Fallback for older versions or slightly different structure
+            elif hasattr(metrics_object, 'keys') and isinstance(metrics_object.keys, (list, tuple)):
+                # If it behaves like a dictionary/tuple of results, access the internal dictionary
+                serializable_metrics = metrics_object.results_dict if hasattr(metrics_object, 'results_dict') else dict(zip(metrics_object.keys, metrics_object.values))
+            else:
+                # If all else fails, print the string representation and return
+                print("Warning: Could not convert DetMetrics to dictionary. Printing object representation instead.")
+                print(metrics_object)
+                return
+
+            # --- 3. Save to JSON File ---
+            save_directory = getattr(metrics_object, 'save_dir', None)
+            if save_directory and serializable_metrics:
+                output_path = os.path.join(save_directory, "training_metrics.json")
+                try:
+                    with open(output_path, 'w') as json_file:
+                        json.dump(serializable_metrics, json_file, indent=4)
+                    print(f"Training metrics saved to {output_path}")
+                except Exception as e:
+                    print(f"Error saving training metrics: {e}")
+                
+            else:
+                print("Warning: Save directory not found. Metrics not saved to file.")
+            
     
 
     @staticmethod

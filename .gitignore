@@ -7,3 +7,4 @@ data
 __pycache__/
 checkpoints/
 runs/
+yolo11n.pt

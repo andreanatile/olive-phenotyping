@@ -186,7 +186,8 @@ def slice_folder(
     slice_size=640,
     overlap_ratio=0.2,
     area_threshold=0.1,
-    keep_empty_slice=False,
+    keep_empty_patch=False,
+    save_visualization=False,
 ):
     """
     The main command to slice all images and labels in a folder.
@@ -270,20 +271,20 @@ def slice_folder(
                         area_threshold,
                     )
 
-                    if not new_labels and not keep_empty_slice:
-                        print(f"Skipping empty tile at ({i}, {j}) for {file_name}")
-                        continue  # Skip tiles with no valid labels
-
+                    
                     # Set slice name and crop the image
                     slice_img = img[y_start:y_end, x_start:x_end]
                     slice_name = f"{base_name}_tile_{i}_{j}"
 
-                    # Save label file if there are labels
-                    if new_labels:
-                        with open(
+                    # Save label file 
+                    with open(
                             os.path.join(output_label_dir, f"{slice_name}.txt"), "w"
                         ) as f:
                             f.write("\n".join(new_labels))
+                    
+                    if not new_labels and not keep_empty_patch:
+                        print(f"Skipping empty tile at ({i}, {j}) for {file_name}")
+                        continue  # Skip tiles with no valid labels
 
                     # Save image slice
                     cv2.imwrite(
@@ -294,5 +295,6 @@ def slice_folder(
             print(f"✅ Processed {file_name} ({W}x{H}) into {num_x * num_y} tiles.")
 
     print(f"--- Tiling Complete: {processed_count} images processed. ---")
-    visualize_yolo_labels(output_dir)
-    print(f"--- Label Visualization Complete ---")
+    if save_visualization:
+        visualize_yolo_labels(output_dir)
+        print(f"--- Label Visualization Complete ---")

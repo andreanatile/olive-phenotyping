@@ -4,6 +4,32 @@ from transformers import RTDetrV2ForObjectDetection, RTDetrV2ImageProcessor
 import torch
 
 
+def add_rtdetr_parser(subparsers, parent_parser, train=False):
+    rtdetr_parser = subparsers.add_parser(
+        "rtdetr", help="Use RT-DETR model.", parents=[parent_parser]
+    )
+    # --- Required Arguments ---
+    rtdetr_parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="YOLO model configuration or weights (e.g., 'yolov11n.pt', 'yolov11m.yaml').",
+    )
+    rtdetr_parser.add_argument(
+        "--epochs", type=int, default=100, help="Number of training epochs."
+    )
+    rtdetr_parser.add_argument(
+        "--patience", type=int, default=10, help="Level of patience for early stopping."
+    )
+    rtdetr_parser.set_defaults(load_func=RTDetrDetector.load_detector)
+    if train:
+        rtdetr_parser.add_argument(
+            "--yaml-path",
+            type=str,
+            help="Path to the Ultralytics dataset configuration YAML.",
+        )
+
+
 class RTDetrDetector(BaseModel):
     def __init__(self, model_id):
         self.model_type = DETECTION

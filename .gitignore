@@ -8,3 +8,4 @@ __pycache__/
 checkpoints/
 runs/
 yolo11n.pt
+requirements.txt

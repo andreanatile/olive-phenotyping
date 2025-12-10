@@ -1,6 +1,6 @@
-from base_model import BaseModel
-from constants import DETECTION, RT_DETR_MODELS
-from transformers import RTDetrV2ForObjectDetection, RTDetrV2ImageProcessor
+from src.models.base_model import BaseModel
+from src.models.constants import DETECTION, RT_DETR_MODELS
+from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor
 import torch
 
 
@@ -13,7 +13,7 @@ def add_rtdetr_parser(subparsers, parent_parser, train=False):
         "--model",
         type=str,
         required=True,
-        help="YOLO model configuration or weights (e.g., 'yolov11n.pt', 'yolov11m.yaml').",
+        help="RT-DETR model configuration or weights (e.g., 'rtdetr_resnet50', 'rtdetr_resnet101').",
     )
     rtdetr_parser.add_argument(
         "--epochs", type=int, default=100, help="Number of training epochs."
@@ -36,7 +36,7 @@ class RTDetrDetector(BaseModel):
         super().__init__(model_id)
 
     def load_model(self, model_id):
-        processor = RTDetrV2ImageProcessor.from_pretrained(model_id)
+        processor = RTDetrImageProcessor.from_pretrained(model_id)
         model = RTDetrV2ForObjectDetection.from_pretrained(model_id)
         return model, processor
 

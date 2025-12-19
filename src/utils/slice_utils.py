@@ -185,6 +185,8 @@ def slicer(
     slice_size=640,
     overlap_ratio=0.2,
     keep_empty_patch=True,
+    area_threshold=0.1,
+    save_visualization=False,
 ):
     """
     Function for automatize slicing of multiple dataset splits.
@@ -196,6 +198,8 @@ def slicer(
         slice_size (int): The side length of the square tiles (e.g., 640).
         overlap_ratio (float): The fractional overlap (e.g., 0.2 for 20%).
         keep_empty_patch (bool): Whether to keep tiles with no objects.
+        area_threshold (float): Minimun area of the bounding boxes label to keep after slicing the image.
+        save_visualization (bool): Whether to save visualization of labeled slices.
     """
 
     for split in split_names:

@@ -178,6 +178,38 @@ def process_sclice_labels(
 
 
 # --- Main Folder Processing Function ---
+def slicer(
+    BASE_DATA_DIR,
+    OUTPUT_DIR,
+    split_names,
+    slice_size=640,
+    overlap_ratio=0.2,
+    keep_empty_patch=True,
+):
+    """
+    Function for automatize slicing of multiple dataset splits.
+
+    Args:
+        BASE_DATA_DIR (str): Base directory containing 'images' and 'labels' subfolders.
+        OUTPUT_DIR (str): Directory to save the new tiled dataset.
+        split_names (list): List of dataset splits to process (e.g., ['train', 'val', 'test']).
+        slice_size (int): The side length of the square tiles (e.g., 640).
+        overlap_ratio (float): The fractional overlap (e.g., 0.2 for 20%).
+        keep_empty_patch (bool): Whether to keep tiles with no objects.
+    """
+
+    for split in split_names:
+        input_dir = os.path.join(BASE_DATA_DIR, split)
+        output_dir = os.path.join(OUTPUT_DIR, split)
+
+        # Call the slicing function
+        slice_folder(
+            data_dir=input_dir,
+            output_dir=output_dir,
+            slice_size=slice_size,
+            overlap_ratio=overlap_ratio,
+            keep_empty_patch=keep_empty_patch,
+        )
 
 
 def slice_folder(
@@ -271,17 +303,16 @@ def slice_folder(
                         area_threshold,
                     )
 
-                    
                     # Set slice name and crop the image
                     slice_img = img[y_start:y_end, x_start:x_end]
                     slice_name = f"{base_name}_tile_{i}_{j}"
 
-                    # Save label file 
+                    # Save label file
                     with open(
-                            os.path.join(output_label_dir, f"{slice_name}.txt"), "w"
-                        ) as f:
-                            f.write("\n".join(new_labels))
-                    
+                        os.path.join(output_label_dir, f"{slice_name}.txt"), "w"
+                    ) as f:
+                        f.write("\n".join(new_labels))
+
                     if not new_labels and not keep_empty_patch:
                         print(f"Skipping empty tile at ({i}, {j}) for {file_name}")
                         continue  # Skip tiles with no valid labels

@@ -156,3 +156,18 @@ class Yolo11Detector(BaseModel):
         detector = Yolo11Detector(model_id)
 
         return detector, class_map
+
+    def count_olives(detector, image_path, class_map, threshold=0.25):
+        """
+        Counts the number of olives detected in a single image.
+        """
+        # 1. Run the prediction (wrapping the image in a list for batch processing)
+        results = detector.predict([image_path], class_map, score_threshold=threshold)
+
+        # 2. Since we passed one image, we look at the first result set
+        detections = results[0]
+
+        # 3. The count is simply the number of items in the list
+        olive_count = len(detections)
+
+        return olive_count

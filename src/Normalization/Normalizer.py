@@ -43,7 +43,7 @@ class ColorNormalizer:
                 return None
 
             # Unpack the detection data
-            detected_swatches = detected[0].values.values
+            detected_swatches = detected[0].swatch_colours
 
             image_corrected = colour.colour_correction(
                 img,
@@ -66,6 +66,7 @@ class ColorNormalizer:
     def process_image(self, img_path):
         """Processes a single image Path object."""
         filename = img_path.name
+        self.one_not_detected = False
         try:
             # colour.io.read_image works fine with Path objects
             img = colour.cctf_decoding(colour.io.read_image(str(img_path)))
@@ -98,6 +99,7 @@ class ColorNormalizer:
         except Exception as e:
             print(f"❌ Error processing {filename}: {e}")
             self._copy_to_not_detected(img_path)
+            self.one_not_detected = True
             return False
 
     def run(self):

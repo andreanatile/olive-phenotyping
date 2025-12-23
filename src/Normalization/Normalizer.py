@@ -140,14 +140,14 @@ class ColorNormalizer:
         print(f"\n✅ Completed. Processed: {total}, Failed: {failed}")
         if self.preload_swatches_path is not None and failed > 0:
             print("Preloading swatches for not detected images...")
-            self.correct_preload_swatches()
+            self.correct_preload_swatches(self.preload_swatches_path)
 
-    def correct_preload_swatches(self):
+    def correct_preload_swatches(self, preload_swatches_path=None):
         """
         For images in the not_detected folder, preload swatches from a given path
         and re-attempt normalization.
         """
-        preload_path = Path(self.preload_swatches_path)
+        preload_path = Path(preload_swatches_path)
         if not preload_path.exists():
             print(f"❌ Preload swatches path does not exist: {preload_path}")
             return

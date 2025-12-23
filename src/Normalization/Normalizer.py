@@ -123,7 +123,7 @@ class ColorNormalizer:
 
             # Save
             img_bgr = cv2.cvtColor((img_srgb * 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
-            out_path = os.path.join(out_folder, filename)
+            out_path = os.path.join(self.output_dir, filename)
             # Save image
             cv2.imwrite(out_path, img_bgr)
             print(f"✅ Saved corrected: {out_path}")
@@ -131,7 +131,7 @@ class ColorNormalizer:
 
         except Exception as e:
             print(f"❌ Error processing {filename}: {e}")
-            self._copy_to_not_detected(img_path, not_detected_folder)
+            self._copy_to_not_detected(img_path, self.not_detected_folder)
             return False
 
     def run(self):

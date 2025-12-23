@@ -23,7 +23,14 @@ REFERENCE_SWATCHES = colour.XYZ_to_RGB(
 
 
 class ColorNormalizer:
-    def __init__(self, root_dir, output_dir, method="Cheung 2004", degree=1, preload_swatches_path=None):
+    def __init__(
+        self,
+        root_dir,
+        output_dir,
+        method="Cheung 2004",
+        degree=1,
+        preload_swatches_path=None,
+    ):
         # Convert strings to Path objects
         self.root_dir = Path(root_dir)
         self.output_dir = Path(output_dir)
@@ -112,7 +119,6 @@ class ColorNormalizer:
         cv2.imwrite(str(out_path), img_bgr)
         print(f"✅ Saved corrected: {out_path}")
 
-
     def run(self):
         """
         Process the entire root directory for images.
@@ -145,11 +151,11 @@ class ColorNormalizer:
         if not preload_path.exists():
             print(f"❌ Preload swatches path does not exist: {preload_path}")
             return
-        
+
         with open(preload_path) as f:
-            not_detected_swatches= json.load(f)
-    
-        total=0,failed=0
+            not_detected_swatches = json.load(f)
+
+        total, failed = 0, 0
 
         for img_path in self.not_detected_folder.iterdir():
             if img_path.suffix.lower() in [".jpg", ".jpeg"]:
@@ -168,7 +174,7 @@ class ColorNormalizer:
                     img_corrected = self.Normalization(
                         img, [not_detected_swatches[img_path.name]]
                     )
-                    
+
                     # Handle correction failure
                     if img_corrected is None:
                         print(f"⚠️ Correction failed: {filename}")
@@ -178,8 +184,11 @@ class ColorNormalizer:
                     # Prepare for saving
                     self.save_corrected_image(img_corrected, filename)
                 except Exception as e:
-                    print(f"❌ Error processing {filename} with preloaded swatches: {e}")
+                    print(
+                        f"❌ Error processing {filename} with preloaded swatches: {e}"
+                    )
                     failed += 1
+
 
 def Normalization_args(parser):
     parser.add_argument(

@@ -333,3 +333,46 @@ def slice_folder(
     if save_visualization:
         visualize_yolo_labels(output_dir)
         print(f"--- Label Visualization Complete ---")
+
+
+def slice_img(
+    img_path: str = None,
+    img: list = None,
+    slice_size: int = 640,
+    overlap_ratio: float = 0.2,
+):
+    """
+    Slices a single image into smaller tiles.
+
+    Args:
+        img_path (str): Path to the input image file.
+        img (list): Input image as a numpy array. If provided, img_path is ignored.
+        slice_size (int): The side length of the square tiles (e.g., 640).
+        overlap_ratio (float): The fractional overlap (e.g., 0.2 for 20%).
+
+    Returns:
+        list: A list of image tiles as numpy arrays.
+    """
+    if img is None:
+        img = cv2.imread(img_path)
+        if img is None:
+            raise ValueError(f"Could not load image from path: {img_path}")
+
+    H, W, _ = img.shape
+    stride = int(slice_size * (1 - overlap_ratio))
+
+    tiles = []
+    num_x = int(np.ceil((W - slice_size) / stride)) + 1
+    num_y = int(np.ceil((H - slice_size) / stride)) + 1
+
+    for i in range(num_x):
+        for j in range(num_y):
+            x_start = min(i * stride, W - slice_size)
+            y_start = min(j * stride, H - slice_size)
+            x_end = x_start + slice_size
+            y_end = y_start + slice_size
+
+            tile_img = img[y_start:y_end, x_start:x_end]
+            tiles.append(tile_img)
+
+    return tiles

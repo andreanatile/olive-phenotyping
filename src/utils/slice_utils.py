@@ -362,6 +362,7 @@ def slice_img(
     stride = int(slice_size * (1 - overlap_ratio))
 
     tiles = []
+    coordinates = []
     num_x = int(np.ceil((W - slice_size) / stride)) + 1
     num_y = int(np.ceil((H - slice_size) / stride)) + 1
 
@@ -374,5 +375,6 @@ def slice_img(
 
             tile_img = img[y_start:y_end, x_start:x_end]
             tiles.append(tile_img)
+            coordinates.append((x_start, y_start, x_end, y_end))
 
-    return tiles
+    return tiles, coordinates

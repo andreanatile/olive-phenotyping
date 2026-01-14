@@ -241,14 +241,11 @@ class ManualSwatchesNormalizer:
 if __name__ == "__main__":
     # Example usage with local paths
     manual_normalizer = ManualSwatchesNormalizer(
-        not_detected_dir_path="data/Normalized copy/not_detected",
-        corrected_dir_path="data/Normalized copy/prova",
-        swatches_saved_json_path="data/Normalized copy/prova_manual_swatches.json",
-        method="Cheung 2004",
-        degree=3,
+        not_detected_dir_path="data/Normalized/not_detected",
+        corrected_dir_path="data/Normalized/corrected",
+        swatches_saved_json_path="data/Normalized/manual_swatches.json",
         n_patches=24,
         display_scale=0.5,
-        dry_run=False,
     )
 
     manual_normalizer.manual_detection_swatches(save_swatches=True)

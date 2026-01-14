@@ -171,21 +171,24 @@ class ColorNormalizer:
                     img = colour.cctf_decoding(colour.io.read_image(str(img_path)))
 
                     # Apply normalization
-                    img_corrected = self.Normalization(
-                        img, [not_detected_swatches[img_path.name]]
+                    img_corrected = colour.colour_correction(
+                        img,
+                        not_detected_swatches[img_path.name],
+                        REFERENCE_SWATCHES,
+                        method=self.method,
+                        degree=self.degree,
                     )
-
                     # Handle correction failure
                     if img_corrected is None:
-                        print(f"⚠️ Correction failed: {filename}")
+                        print(f"⚠️ Correction failed: {img_path.name}")
                         failed += 1
                         continue
 
                     # Prepare for saving
-                    self.save_corrected_image(img_corrected, filename)
+                    self.save_corrected_image(img_corrected, img_path.name)
                 except Exception as e:
                     print(
-                        f"❌ Error processing {filename} with preloaded swatches: {e}"
+                        f"❌ Error processing {img_path.name} with preloaded swatches: {e}"
                     )
                     failed += 1
 

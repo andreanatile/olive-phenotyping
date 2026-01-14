@@ -7,6 +7,18 @@ import json
 import colour
 from pathlib import Path
 
+# DA CANCELLLARE
+D65 = colour.CCS_ILLUMINANTS["CIE 1931 2 Degree Standard Observer"]["D65"]
+REFERENCE_COLOUR_CHECKER = colour.CCS_COLOURCHECKERS[
+    "ColorChecker24 - After November 2014"
+]
+
+REFERENCE_SWATCHES = colour.XYZ_to_RGB(
+    colour.xyY_to_XYZ(list(REFERENCE_COLOUR_CHECKER.data.values())),
+    "sRGB",
+    REFERENCE_COLOUR_CHECKER.illuminant,
+)
+
 
 class ManualSwatchesNormalizer:
     """Interactively select ColorChecker patches and apply manual normalization."""
@@ -30,22 +42,16 @@ class ManualSwatchesNormalizer:
         not_detected_dir_path,
         corrected_dir_path,
         swatches_saved_json_path,
-        method="Cheung 2004",
-        degree=3,
         n_patches=DEFAULT_N_PATCHES,
         display_scale=DEFAULT_DISPLAY_SCALE,
-        dry_run=False,
     ):
         # Convert strings to Path objects
         self.input_dir = Path(not_detected_dir_path)
         self.output_dir = Path(corrected_dir_path)
         self.output_json = Path(swatches_saved_json_path)
 
-        self.method = method
-        self.degree = degree
         self.n_patches = n_patches
         self.display_scale = display_scale
-        self.dry_run = dry_run
         self.json_data = {}
 
     def select_patches(self, image_path):
@@ -209,7 +215,7 @@ class ManualSwatchesNormalizer:
         cv2.destroyAllWindows()
         return np.array(patches) if len(patches) > 0 else None
 
-    def manual_detection_swatches(self):
+    def manual_detection_swatches(self, save_swatches=True):
         """Manually select swatches and save into JSON."""
         # Pathlib globbing
         images_path = sorted(self.input_dir.glob("*.jpg"))
@@ -224,53 +230,12 @@ class ManualSwatchesNormalizer:
             self.json_data[path.name] = patches.tolist()
             print(f"✅ Saved RGB values for {path.name}")
 
-    def process_images(self):
-        """Process images and save corrected versions to output_dir."""
-        image_paths = sorted(self.input_dir.glob("*.jpg"))
-        if not image_paths:
-            print(f"No images found in {self.input_dir}")
-            return
-
-        local_json = {}
-
-        for img_path in image_paths:
-            result = self.select_patches(img_path)
-            if result is None:
-                continue
-
-            result = np.array(result) / 255.0
-            local_json[img_path.name] = result.tolist()
-
-            if self.dry_run:
-                print(f"Dry-run: {img_path.name} with {self.method}")
-                continue
-
-            # colour.io works with string paths
-            img = colour.cctf_decoding(colour.io.read_image(str(img_path)))
-            corrected_img = Normalization_sw(
-                img, result, method=self.method, degree=self.degree
-            )
-
-            if corrected_img is not None:
-                corrected_encoded = colour.cctf_encoding(np.clip(corrected_img, 0, 1))
-                corrected_rgb = (corrected_encoded * 255).astype(np.uint8)
-
-                # Create directory if it doesn't exist
-                self.output_dir.mkdir(parents=True, exist_ok=True)
-                output_path = self.output_dir / img_path.name
-
-                imageio.imwrite(output_path, corrected_rgb)
-                print(f"💾 Corrected image saved at {output_path}")
-
-        # Ensure JSON parent directory exists
-        self.output_json.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_json, "w") as f:
-            json.dump(local_json, f, indent=4)
-
-        print(f"\n💾 All results saved in {self.output_json}")
-
-    def run(self):
-        self.process_images()
+        if save_swatches:
+            # Ensure JSON parent directory exists
+            self.output_json.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.output_json, "w") as f:
+                json.dump(self.json_data, f, indent=4)
+            print(f"\n💾 All swatches saved in {self.output_json}")
 
 
 if __name__ == "__main__":
@@ -285,4 +250,5 @@ if __name__ == "__main__":
         display_scale=0.5,
         dry_run=False,
     )
-    manual_normalizer.manual_detection_swatches()
+
+    manual_normalizer.manual_detection_swatches(save_swatches=True)

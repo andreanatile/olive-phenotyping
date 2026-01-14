@@ -3,16 +3,14 @@ import argparse
 import cv2
 import imageio
 import numpy as np
-import os
-import glob
 import json
 import colour
+from pathlib import Path
 
 
 class ManualSwatchesNormalizer:
     """Interactively select ColorChecker patches and apply manual normalization."""
 
-    # --- CONSTANTS ---
     DEFAULT_N_PATCHES = 24
     DEFAULT_DISPLAY_SCALE = 0.5
 
@@ -29,18 +27,20 @@ class ManualSwatchesNormalizer:
 
     def __init__(
         self,
-        input_dir,
-        output_dir,
-        output_json,
+        not_detected_dir_path,
+        corrected_dir_path,
+        swatches_saved_json_path,
         method="Cheung 2004",
         degree=3,
         n_patches=DEFAULT_N_PATCHES,
         display_scale=DEFAULT_DISPLAY_SCALE,
         dry_run=False,
     ):
-        self.input_dir = input_dir
-        self.output_dir = output_dir
-        self.output_json = output_json
+        # Convert strings to Path objects
+        self.input_dir = Path(not_detected_dir_path)
+        self.output_dir = Path(corrected_dir_path)
+        self.output_json = Path(swatches_saved_json_path)
+
         self.method = method
         self.degree = degree
         self.n_patches = n_patches
@@ -49,93 +49,184 @@ class ManualSwatchesNormalizer:
         self.json_data = {}
 
     def select_patches(self, image_path):
-        """Open an image, let the user select color patches manually."""
-        img = cv2.imread(image_path)
+        """
+        Open an image with a locked zoom feature.
+        Press 'z' to zoom into the current mouse position and lock the view.
+        """
+        img = cv2.imread(str(image_path))
         if img is None:
             print(f"⚠️ Cannot read {image_path}")
             return None
 
         orig_img = img.copy()
-        img_display = cv2.resize(
-            orig_img.copy(), (0, 0), fx=self.display_scale, fy=self.display_scale
-        )
-        completed_rects = []
+        h, w = orig_img.shape[:2]
+
+        # --- CONFIGURATION ---
+        MAX_WIN_W, MAX_WIN_H = 1280, 720
+        fit_scale = min(MAX_WIN_W / w, MAX_WIN_H / h, self.display_scale)
+
+        # State management
         patches = []
-        points = []
+        completed_rects_orig = []
         drawing = False
+        start_point_orig = None
+        mouse_orig = (w // 2, h // 2)  # Tracking mouse for zoom target
+
+        # Zoom state
+        is_zoomed = False
+        locked_zoom_center = (w // 2, h // 2)
+        zoom_factor = 4.0
+
+        def get_display_frame():
+            """Generates the frame based on whether zoom is locked or off."""
+            if not is_zoomed:
+                display = cv2.resize(
+                    orig_img,
+                    (0, 0),
+                    fx=fit_scale,
+                    fy=fit_scale,
+                    interpolation=cv2.INTER_AREA,
+                )
+                curr_scale = fit_scale
+                offset = (0, 0)
+            else:
+                # Use the center that was LOCKED when 'z' was pressed
+                zw, zh = int(w / zoom_factor), int(h / zoom_factor)
+                x1 = max(0, min(locked_zoom_center[0] - zw // 2, w - zw))
+                y1 = max(0, min(locked_zoom_center[1] - zh // 2, h - zh))
+                crop = orig_img[y1 : y1 + zh, x1 : x1 + zw].copy()
+                display = cv2.resize(
+                    crop,
+                    (int(w * fit_scale), int(h * fit_scale)),
+                    interpolation=cv2.INTER_LINEAR,
+                )
+                curr_scale = (w * fit_scale) / zw
+                offset = (x1, y1)
+
+            # Draw completed rectangles
+            for r in completed_rects_orig:
+                p1 = (
+                    int((r[0][0] - offset[0]) * curr_scale),
+                    int((r[0][1] - offset[1]) * curr_scale),
+                )
+                p2 = (
+                    int((r[1][0] - offset[0]) * curr_scale),
+                    int((r[1][1] - offset[1]) * curr_scale),
+                )
+                cv2.rectangle(display, p1, p2, (0, 255, 0), 2)
+
+            return display, curr_scale, offset
 
         def on_mouse(event, x, y, flags, param):
-            nonlocal drawing, points, img_display, patches, completed_rects
+            nonlocal drawing, start_point_orig, patches, mouse_orig
+
+            _, curr_scale, offset = get_display_frame()
+            # Always track where the mouse is in "Original Image" pixels
+            mouse_orig = (
+                int(x / curr_scale + offset[0]),
+                int(y / curr_scale + offset[1]),
+            )
+
             if event == cv2.EVENT_LBUTTONDOWN:
                 drawing = True
-                points = [(x, y)]
-            elif event == cv2.EVENT_MOUSEMOVE and drawing:
-                temp = img_display.copy()
-                for rect in completed_rects:
-                    cv2.rectangle(temp, rect[0], rect[1], (0, 255, 0), 2)
-                cv2.rectangle(temp, points[0], (x, y), (0, 255, 0), 1)
-                cv2.imshow("Select patches", temp)
+                start_point_orig = mouse_orig
+
+            elif event == cv2.EVENT_MOUSEMOVE:
+                if drawing:
+                    display_img, _, _ = get_display_frame()
+                    p1_disp = (
+                        int((start_point_orig[0] - offset[0]) * curr_scale),
+                        int((start_point_orig[1] - offset[1]) * curr_scale),
+                    )
+                    # Live drawing of the rectangle
+                    cv2.rectangle(display_img, p1_disp, (x, y), (0, 255, 0), 1)
+                    cv2.imshow("Select patches", display_img)
+
             elif event == cv2.EVENT_LBUTTONUP:
                 drawing = False
-                points.append((x, y))
-                x1, y1 = int(points[0][0] / self.display_scale), int(
-                    points[0][1] / self.display_scale
-                )
-                x2, y2 = int(points[1][0] / self.display_scale), int(
-                    points[1][1] / self.display_scale
-                )
-                roi = orig_img[min(y1, y2) : max(y1, y2), min(x1, x2) : max(x1, x2)]
-                mean_color = roi.mean(axis=(0, 1))
-                patches.append(mean_color[::-1].tolist())  # Convert BGR → RGB
-                print(f"Patch {len(patches)} avg RGB: {patches[-1]}")
-                completed_rects.append((points[0], points[1]))
-                img_display[:] = cv2.resize(
-                    orig_img.copy(),
-                    (0, 0),
-                    fx=self.display_scale,
-                    fy=self.display_scale,
-                )
-                for rect in completed_rects:
-                    cv2.rectangle(img_display, rect[0], rect[1], (0, 255, 0), 2)
-                cv2.imshow("Select patches", img_display)
+                x1, x2 = sorted([start_point_orig[0], mouse_orig[0]])
+                y1, y2 = sorted([start_point_orig[1], mouse_orig[1]])
 
-        cv2.namedWindow("Select patches", cv2.WINDOW_NORMAL)
-        cv2.setMouseCallback("Select patches", on_mouse)
+                roi = orig_img[y1:y2, x1:x2]
+                if roi.size > 0:
+                    mean_color = roi.mean(axis=(0, 1))
+                    patches.append(mean_color[::-1].tolist())
+                    completed_rects_orig.append(((x1, y1), (x2, y2)))
 
-        print(f"\n🖼️ Processing: {os.path.basename(image_path)}")
-        print(
-            f"🖱️ Draw rectangles around each ColorChecker patch ({self.n_patches} total)."
-        )
-        print("Press 's' to save, 'q' to skip, or 'r' to reset.")
+        window_name = "Select patches"
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        cv2.setMouseCallback(window_name, on_mouse)
+
+        print(f"🖼️ {image_path.name}")
+        print("INSTRUCTIONS:")
+        print("1. Hover mouse over a patch.")
+        print("2. Press 'z' to LOCK zoom on that spot.")
+        print("3. Draw your rectangle. Press 'z' again to zoom out.")
 
         while True:
-            cv2.imshow("Select patches", img_display)
-            key = cv2.waitKey(1) & 0xFF
-            if key in (ord("+"), ord("=")):
-                pass  # zoom omitted for simplicity
+            display_img, _, _ = get_display_frame()
+
+            # UI Overlay: Show a crosshair if zoomed for better precision
+            if is_zoomed and not drawing:
+                # Just a visual guide
+                h_disp, w_disp = display_img.shape[:2]
+                cv2.line(
+                    display_img,
+                    (0, h_disp // 2),
+                    (w_disp, h_disp // 2),
+                    (255, 255, 255),
+                    1,
+                )
+                cv2.line(
+                    display_img,
+                    (w_disp // 2, 0),
+                    (w_disp // 2, h_disp),
+                    (255, 255, 255),
+                    1,
+                )
+
+            cv2.imshow(window_name, display_img)
+            cv2.setWindowTitle(
+                window_name,
+                f"Patches: {len(patches)}/{self.n_patches} | Zoom: {'LOCKED' if is_zoomed else 'OFF'}",
+            )
+
+            key = cv2.waitKey(10) & 0xFF
+            if key == ord("z"):
+                is_zoomed = not is_zoomed
+                if is_zoomed:
+                    # Capture the current mouse position as the anchor
+                    locked_zoom_center = mouse_orig
+            elif key == ord("u") and patches:
+                patches.pop()
+                completed_rects_orig.pop()
             elif key == ord("s") or len(patches) == self.n_patches:
                 break
             elif key == ord("q"):
                 patches = []
                 break
-            elif key == ord("r"):
-                print("🔄 Resetting selections...")
-                patches.clear()
-                completed_rects.clear()
-                img_display[:] = cv2.resize(
-                    orig_img.copy(),
-                    (0, 0),
-                    fx=self.display_scale,
-                    fy=self.display_scale,
-                )
-                cv2.imshow("Select patches", img_display)
 
         cv2.destroyAllWindows()
-        return np.array(patches) if len(patches) == self.n_patches else None
+        return np.array(patches) if len(patches) > 0 else None
+
+    def manual_detection_swatches(self):
+        """Manually select swatches and save into JSON."""
+        # Pathlib globbing
+        images_path = sorted(self.input_dir.glob("*.jpg"))
+
+        for path in images_path:
+            patches = self.select_patches(path)
+            if patches is None:
+                print(f"⚠️ Skipped {path.name}")
+                continue
+
+            patches = np.array(patches) / 255.0
+            self.json_data[path.name] = patches.tolist()
+            print(f"✅ Saved RGB values for {path.name}")
 
     def process_images(self):
-        """Process all JPGs in input_dir by manual patch selection and normalization."""
-        image_paths = sorted(glob.glob(os.path.join(self.input_dir, "*.jpg")))
+        """Process images and save corrected versions to output_dir."""
+        image_paths = sorted(self.input_dir.glob("*.jpg"))
         if not image_paths:
             print(f"No images found in {self.input_dir}")
             return
@@ -145,55 +236,53 @@ class ManualSwatchesNormalizer:
         for img_path in image_paths:
             result = self.select_patches(img_path)
             if result is None:
-                print(f"⚠️ Skipped {os.path.basename(img_path)}")
                 continue
 
             result = np.array(result) / 255.0
-            local_json[os.path.basename(img_path)] = result.tolist()
+            local_json[img_path.name] = result.tolist()
 
             if self.dry_run:
-                print(
-                    f"Dry-run: would normalize {os.path.basename(img_path)} with {self.method}, degree={self.degree}"
-                )
+                print(f"Dry-run: {img_path.name} with {self.method}")
                 continue
 
-            img = colour.cctf_decoding(colour.io.read_image(img_path))
+            # colour.io works with string paths
+            img = colour.cctf_decoding(colour.io.read_image(str(img_path)))
             corrected_img = Normalization_sw(
                 img, result, method=self.method, degree=self.degree
             )
+
             if corrected_img is not None:
                 corrected_encoded = colour.cctf_encoding(np.clip(corrected_img, 0, 1))
                 corrected_rgb = (corrected_encoded * 255).astype(np.uint8)
-                output_path = os.path.join(self.output_dir, os.path.basename(img_path))
-                os.makedirs(self.output_dir, exist_ok=True)
+
+                # Create directory if it doesn't exist
+                self.output_dir.mkdir(parents=True, exist_ok=True)
+                output_path = self.output_dir / img_path.name
+
                 imageio.imwrite(output_path, corrected_rgb)
                 print(f"💾 Corrected image saved at {output_path}")
-            print(f"✅ Saved RGB values for {os.path.basename(img_path)}")
 
+        # Ensure JSON parent directory exists
+        self.output_json.parent.mkdir(parents=True, exist_ok=True)
         with open(self.output_json, "w") as f:
             json.dump(local_json, f, indent=4)
 
         print(f"\n💾 All results saved in {self.output_json}")
 
-    def run(
-        self,
-        input_dir,
-        output_dir,
-        output_json,
-        method,
-        degree,
-        n_patches,
-        display_scale,
-        dry_run,
-    ):
-        tool = ManualSwatchesNormalizer(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            output_json=output_json,
-            method=method,
-            degree=degree,
-            n_patches=n_patches,
-            display_scale=display_scale,
-            dry_run=dry_run,
-        )
-        tool.process_images()
+    def run(self):
+        self.process_images()
+
+
+if __name__ == "__main__":
+    # Example usage with local paths
+    manual_normalizer = ManualSwatchesNormalizer(
+        not_detected_dir_path="data/Normalized copy/not_detected",
+        corrected_dir_path="data/Normalized copy/prova",
+        swatches_saved_json_path="data/Normalized copy/prova_manual_swatches.json",
+        method="Cheung 2004",
+        degree=3,
+        n_patches=24,
+        display_scale=0.5,
+        dry_run=False,
+    )
+    manual_normalizer.manual_detection_swatches()

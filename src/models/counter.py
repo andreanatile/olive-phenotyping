@@ -49,7 +49,9 @@ class OliveCounter:
             return None
 
         # result[7].show()
-        results = self.model.predict(tiles, conf=conf, verbose=True)
+        results = self.model.predict(
+            tiles, conf=conf, verbose=True, save=True, visualize=True
+        )
         return results
 
     def count(
@@ -86,7 +88,7 @@ class OliveCounter:
 
         # Apply NMS and get final count
         total_count, final_boxes = self.nms_count(
-            results, coordinates, iou_threshold=0.2
+            results, coordinates, iou_threshold=0.15
         )
         return total_count, final_boxes
 

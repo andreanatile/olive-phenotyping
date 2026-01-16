@@ -201,13 +201,13 @@ def Normalization_args(parser):
         "--output_dir", type=str, required=True, help="Output directory for results."
     )
     parser.add_argument(
-        "--method", type=str, default="Cheung 2004", help="Correction method."
+        "--method", type=str, default="Cheung 2004",choices=['Cheung 2004', 'Finlayson 2015', 'Vandermonde'], help="Correction method."
     )
     parser.add_argument(
-        "--degree", type=int, default=1, help="Degree of polynomial correction."
+        "--degree", type=int, default=1,choices=[1, 2, 3,4], help="Degree of polynomial correction."
     )
     parser.add_argument(
-        "--preload_swatches_filepath",
+        "--preload_swatches_path",
         type=str,
         default=None,
         help="Path for json file to preload color swatches for not detected images.",

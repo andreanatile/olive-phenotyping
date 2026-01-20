@@ -9,4 +9,3 @@ checkpoints/
 runs/
 yolo11n.pt
 requirements.txt
-checkpoints

@@ -1,7 +1,6 @@
 import argparse
 from src.models.utils import parse_cfg
 from src.models.yolo11 import add_yolo_parser
-from src.models.rt_detr import add_rtdetr_parser
 
 
 if __name__ == "__main__":
@@ -24,7 +23,6 @@ if __name__ == "__main__":
         dest="model_type", required=True, help="Select the model to run."
     )
     add_yolo_parser(subparsers, parent_parser, train=True)
-    add_rtdetr_parser(subparsers, parent_parser, train=True)
     args = parser.parse_args()
 
     config = parse_cfg(args.config_path)

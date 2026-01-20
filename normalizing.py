@@ -12,10 +12,10 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         method=args.method,
         degree=args.degree,
-        preload_swatches_path=args.preload_swatches_filepath,
+        preload_swatches_path=args.preload_swatches_path,
     )
     normalizer.run()
 
 """
-python3 normalizing.py --root_dir "/mnt/c/Datasets/Olive/foto_originali" --output_dir "/mnt/c/Datasets/Olive/normalized" --method "Cheung 2004" --degree 3
+python3 normalizing.py --root_dir "/mnt/c/Datasets/Olive/foto_originali" --output_dir "/mnt/c/Datasets/Olive/normalized" --method "Cheung 2004" --degree 3 --preload_swatches_path "/mnt/c/Datasets/Olive/manual_swatches.json"
 """

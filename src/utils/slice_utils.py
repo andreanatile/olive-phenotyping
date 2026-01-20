@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import shutil
 
 
 def visualize_yolo_labels(base_folder):
@@ -378,3 +379,38 @@ def slice_img(
             coordinates.append((x_start, y_start, x_end, y_end))
 
     return tiles, coordinates
+
+
+def find_folder_difference(folder_a, folder_b, destination_folder=None):
+    # Create the destination folder if it doesn't exist
+    if destination_folder is not None and not os.path.exists(destination_folder):
+        os.makedirs(destination_folder)
+        print(f"Created directory: {destination_folder}")
+
+    # Get sets of filenames
+    files_a = set(os.listdir(folder_a))
+    files_b = set(os.listdir(folder_b))
+
+    # Find files in A that are NOT in B
+    unique_to_a = files_a - files_b
+
+    print(f"Moving {len(unique_to_a)} unique files...")
+
+    for filename in unique_to_a:
+        
+        source_path = os.path.join(folder_a, filename)
+        print(source_path)
+        if destination_folder is not None:
+            dest_path = os.path.join(destination_folder, filename)
+            
+            # Check if it's actually a file (to avoid copying subfolders)
+            if os.path.isfile(source_path):
+                shutil.copy2(source_path, dest_path) # copy2 preserves metadata
+                print(f"Copied: {filename}")
+
+
+# Example usage
+path_a = '/mnt/c/Datasets/Olive/normalized/corrected'
+path_b = '/mnt/c/Datasets/OlivePG/bbox_ground_truth/images'
+destination_path = '/mnt/c/Datasets/Olive/normalized/to_check'
+find_folder_difference(path_a, path_b, destination_path)

@@ -409,8 +409,28 @@ def find_folder_difference(folder_a, folder_b, destination_folder=None):
                 print(f"Copied: {filename}")
 
 
-# Example usage
-path_a = '/mnt/c/Datasets/Olive/normalized/corrected'
-path_b = '/mnt/c/Datasets/OlivePG/bbox_ground_truth/images'
-destination_path = '/mnt/c/Datasets/Olive/normalized/to_check'
-find_folder_difference(path_a, path_b, destination_path)
+import os
+
+def get_all_jpg_paths(directory):
+    """
+    Scans the directory for all .jpg and .jpeg files 
+    and returns a list of their absolute paths.
+    """
+    jpg_path_list = []
+    
+    # os.walk yields a 3-tuple (dirpath, dirnames, filenames)
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            # Check for jpg or jpeg (case-insensitive)
+            if file.lower().endswith((".jpg", ".jpeg")):
+                # Create the full absolute path
+                full_path = os.path.join(root, file)
+                jpg_path_list.append(full_path)
+                
+    return jpg_path_list
+
+# Example Usage:
+my_folder = '/mnt/c/Datasets/Olive/normalized/to_check'
+all_jpgs = get_all_jpg_paths(my_folder)
+
+print(all_jpgs)

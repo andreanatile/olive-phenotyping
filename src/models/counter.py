@@ -3,6 +3,8 @@ from src.utils.slice_utils import slice_img
 import numpy as np
 from torchvision.ops import nms
 import torch
+from pathlib import Path
+import cv2
 
 
 class OliveCounter:
@@ -60,6 +62,7 @@ class OliveCounter:
         img_path: str = None,
         conf: int = 0.25,
         overlap_ratio: float = 0.2,
+        save_final_boxes: bool = False
     ):
         """
         Count the number of olives inside the image using YOLO model.
@@ -70,6 +73,7 @@ class OliveCounter:
         Returns:
             counts (list): List of counts of detected olives for each image.
         """
+        path_obj = Path(img_path)
         if img is None and img_path is None:
             raise ValueError("Either img or img_path must be provided.")
         try:
@@ -90,6 +94,9 @@ class OliveCounter:
         total_count, final_boxes = self.nms_count(
             results, coordinates, iou_threshold=0.15
         )
+    
+        if save_final_boxes:
+            self.save_labels(final_boxes, path_obj)
         return total_count, final_boxes
 
     def nms_count(self, results, coordinates, iou_threshold=0.5):
@@ -130,3 +137,33 @@ class OliveCounter:
 
         print(f"Final Count: {total_olives}")
         return total_olives, final_boxes
+
+    def save_labels(self, final_boxes, img_path_obj: Path, output_dir: str = "labels", class_id: int = 0):
+        """
+        Saves final_boxes to a .txt file in YOLO format using pathlib.
+        """
+        # Create output directory if it doesn't exist
+        out_path = Path(output_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+
+        # 1. Get image dimensions (OpenCV still needs string path)
+        img = cv2.imread(str(img_path_obj))
+        img_h, img_w = img.shape[:2]
+
+        # 2. Match the image name exactly (.stem gets filename without extension)
+        txt_file = out_path / f"{img_path_obj.stem}.txt"
+
+        with txt_file.open("w") as f:
+            for box in final_boxes:
+                x1, y1, x2, y2 = box.tolist()
+
+                # Conversion to YOLO center-based format
+                w = x2 - x1
+                h = y2 - y1
+                x_center = x1 + (w / 2)
+                y_center = y1 + (h / 2)
+
+                # Normalization
+                f.write(f"{class_id} {x_center/img_w:.6f} {y_center/img_h:.6f} {w/img_w:.6f} {h/img_h:.6f}\n")
+        
+        print(f"Saved: {txt_file}")

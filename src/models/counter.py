@@ -5,6 +5,7 @@ from torchvision.ops import nms
 import torch
 from pathlib import Path
 import cv2
+import time
 
 
 class OliveCounter:
@@ -79,27 +80,54 @@ class OliveCounter:
         if img is None and img_path is None:
             raise ValueError("Either img or img_path must be provided.")
         try:
+            start_preprocessing_time=time.time()
             tiles, coordinates = slice_img(
                 img=img,
                 img_path=img_path,
-                slice_size=640,
+                slice_size=slice_size,
                 overlap_ratio=overlap_ratio,
             )
+            end_preprocessing_time=time.time()
         except Exception as e:
             print(f"Error in slicing image: {e}")
             return None
 
         # result[7].show()
+        start_inference_time=time.time()
         results = self.model.predict(tiles, conf=conf, verbose=True)
+        end_inference_time=time.time()
+        
+        
 
+        start_nms_time=time.time()
         # Apply NMS and get final count
         total_count, final_boxes = self.nms_count(
             results, coordinates, iou_threshold=0.15
         )
-    
+        end_nms_time=time.time()
+
+        preprocessing_time=end_preprocessing_time-start_preprocessing_time
+        print(f"Preprocessing Time (s): {preprocessing_time:.2f}")
+
+        inference_time=end_inference_time-start_inference_time
+        print(f"Inference Time (s): {inference_time:.2f}")
+        
+        nms_time=end_nms_time-start_nms_time
+        print(f"NMS Time (s): {nms_time:.2f}")
+
+        counting_time = preprocessing_time + inference_time + nms_time
+        print(f"Total Counting Time (s): {counting_time:.2f}")
+
+        times={
+            "preprocessing_time": preprocessing_time,
+            "inference_time": inference_time,
+            "nms_time": nms_time,
+            "total_counting_time": counting_time
+        }
+
         if save_final_boxes:
             self.save_labels(final_boxes, path_obj)
-        return total_count, final_boxes
+        return total_count, final_boxes, times
 
     def nms_count(self, results, coordinates, iou_threshold=0.5):
         all_global_boxes = []
@@ -169,3 +197,37 @@ class OliveCounter:
                 f.write(f"{class_id} {x_center/img_w:.6f} {y_center/img_h:.6f} {w/img_w:.6f} {h/img_h:.6f}\n")
         
         print(f"Saved: {txt_file}")
+
+    def count_folder(self, folder_path: str, conf: float = 0.25, slice_size: int = 640, save_final_boxes: bool = True):
+        """
+        Counts olives for every image in a folder and saves the results.
+        """
+        folder = Path(folder_path)
+        # Define common image extensions
+        extensions = ("*.jpg", "*.jpeg", "*.png", "*.JPG", "*.PNG")
+        
+        # Use rglob to find all images recursively in subfolders
+        image_paths = []
+        for ext in extensions:
+            image_paths.extend(list(folder.rglob(ext)))
+        
+        print(f"Found {len(image_paths)} images in {folder_path}")
+        
+        results_summary = {}
+
+        for img_path in image_paths:
+            print(f"Processing: {img_path.name}...")
+            try:
+                # We call your existing 'count' method
+                total_count, _, times = self.count(
+                    img_path=str(img_path),
+                    conf=conf,
+                    slice_size=slice_size,
+                    save_final_boxes=save_final_boxes
+                )
+                results_summary[img_path.name] ={"number of olive":total_count,
+                                                    "times":times}
+            except Exception as e:
+                print(f"Failed to process {img_path.name}: {e}")
+
+        return results_summary

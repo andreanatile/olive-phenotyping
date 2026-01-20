@@ -6,16 +6,16 @@ import os
 if __name__ == "__main__":
 
     # Define your folder paths
-    BASE_DATA_DIR = "/mnt/c/Datasets/OlivePG/bbox_gt_ul_70"  # Input folder
-    OUTPUT_DIR = "/mnt/c/Datasets/OlivePG/bbox_gt_ul_70_patch_nkeep"  # Output folder
+    BASE_DATA_DIR = "/mnt/c/Datasets/OlivePG/bbox_gt_ul_80"  # Input folder
+    OUTPUT_DIR = "/mnt/c/Datasets/OlivePG/bbox_gt_ul_640"  # Output folder
 
     # List of dataset splits
-    split_names = ["train", "val", "test"]
+    split_names = ["train", "val"]
     slicer(
-        base_data_dir=BASE_DATA_DIR,
-        output_dir=OUTPUT_DIR,
+        BASE_DATA_DIR=BASE_DATA_DIR,
+        OUTPUT_DIR=OUTPUT_DIR,
         split_names=split_names,
         slice_size=640,
-        overlap=0.20,
+        overlap_ratio=0.20,
         keep_empty_patch=True,
     )

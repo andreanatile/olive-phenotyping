@@ -27,6 +27,7 @@ class OliveCounter:
         img_path: str = None,
         conf: int = 0.25,
         overlap_ratio: float = 0.2,
+        slice_size: int = 640,
     ):
         """
         Count the number of olives inside the image using YOLO model.
@@ -43,7 +44,7 @@ class OliveCounter:
             tiles, coordinates = slice_img(
                 img=img,
                 img_path=img_path,
-                slice_size=640,
+                slice_size=slice_size,
                 overlap_ratio=overlap_ratio,
             )
         except Exception as e:
@@ -62,6 +63,7 @@ class OliveCounter:
         img_path: str = None,
         conf: int = 0.25,
         overlap_ratio: float = 0.2,
+        slice_size: int = 640,
         save_final_boxes: bool = False
     ):
         """

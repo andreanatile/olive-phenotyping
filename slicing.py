@@ -1,7 +1,4 @@
 from src.utils.slice_utils import slicer
-import sys
-import os
-
 
 if __name__ == "__main__":
 

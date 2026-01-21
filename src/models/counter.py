@@ -1,5 +1,5 @@
 from ultralytics import YOLO
-from src.utils.slice_utils import slice_img
+from src.utils.slice_detection_utils import slice_img
 import numpy as np
 from torchvision.ops import nms
 import torch

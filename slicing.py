@@ -1,4 +1,4 @@
-from src.utils.slice_utils import slicer
+from src.utils.slice_detection_utils import slicer
 
 if __name__ == "__main__":
 

@@ -7,7 +7,7 @@ model = YOLOE("checkpoints/yoloe-11s-seg.pt")  # or yoloe-26s/m-seg.pt for diffe
 # Conduct model validation on the COCO128-seg example dataset
 config_path="/mnt/c/Datasets/OlivePG/seg_tiled_640/config_seg_640.yaml"
 
-metrics = model.val(data=config_path,save_json=True)
+metrics = model.val(data=config_path,save_json=True,conf=0.01)
 
 maps={
     " map50-95(B)": metrics.box.map,

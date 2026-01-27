@@ -83,3 +83,45 @@ def plot_results(
         cv2.imshow("Olive Detection Results", display_img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+def times_analyzer(times_summary: dict):
+    """
+    Analyzes the times summary dictionary to compute average times for each stage.
+    """
+    total_images = len(times_summary)
+    if total_images == 0:
+        print("No images processed.")
+        return {}
+
+    # Initialize accumulators
+    total_preprocessing = 0.0
+    total_inference = 0.0
+    total_nms = 0.0
+    total_counting = 0.0
+    max_total_counting_time = {"preprocessing_time": 0.0,
+            "inference_time": 0.0,
+            "nms_time": 0.0,
+            "total_counting_time": 0.0}
+
+    # Accumulate times
+    for times in times_summary.values():
+        total_preprocessing += times.get("preprocessing_time", 0.0)
+        total_inference += times.get("inference_time", 0.0)
+        total_nms += times.get("nms_time", 0.0)
+        total_counting += (
+            times.get("preprocessing_time", 0.0) +
+            times.get("inference_time", 0.0) +
+            times.get("nms_time", 0.0)
+        )
+        if times.get("total_counting_time", 0.0) > max_total_counting_time["total_counting_time"]:
+            max_total_counting_time = times
+
+    # Compute averages
+    avg_times = {
+        "average_preprocessing_time": total_preprocessing / total_images,
+        "average_inference_time": total_inference / total_images,
+        "average_nms_time": total_nms / total_images,
+        "average_counting_time": total_counting / total_images,
+    }
+
+    return avg_times,max_total_counting_time

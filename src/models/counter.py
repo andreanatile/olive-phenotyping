@@ -198,7 +198,7 @@ class OliveCounter:
         
         print(f"Saved: {txt_file}")
 
-    def count_folder(self, folder_path: str, conf: float = 0.25, slice_size: int = 640, save_final_boxes: bool = True):
+    def count_folder(self, folder_path: str, conf: float = 0.25, slice_size: int = 640,overlap_ratio: float = 0.5, save_final_boxes: bool = True):
         """
         Counts olives for every image in a folder and saves the results.
         """
@@ -214,6 +214,7 @@ class OliveCounter:
         print(f"Found {len(image_paths)} images in {folder_path}")
         
         results_summary = {}
+        times_summary = {}
 
         for img_path in image_paths:
             print(f"Processing: {img_path.name}...")
@@ -223,11 +224,13 @@ class OliveCounter:
                     img_path=str(img_path),
                     conf=conf,
                     slice_size=slice_size,
-                    save_final_boxes=save_final_boxes
+                    save_final_boxes=save_final_boxes,
+                    overlap_ratio=overlap_ratio
                 )
                 results_summary[img_path.name] ={"number of olive":total_count,
                                                     "times":times}
+                times_summary[img_path.name] = times
             except Exception as e:
                 print(f"Failed to process {img_path.name}: {e}")
 
-        return results_summary
+        return results_summary,times_summary

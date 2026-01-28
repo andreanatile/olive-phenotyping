@@ -1,10 +1,11 @@
-
+import argparse
 import os
 import torch
 import numpy as np
 from pathlib import Path
 from ultralytics.utils.metrics import ap_per_class, box_iou
 from ultralytics.utils.ops import xywh2xyxy
+import json
 
 class OliveEvaluator:
     def __init__(self, gt_folder: str, pred_folder: str, iou_thresholds=None):
@@ -193,13 +194,17 @@ class OliveEvaluator:
         print(f"Precision: {p.mean():.4f}")
         print(f"Recall: {r.mean():.4f}")
         
+        if save_json and output_path is not None:
+            eval_dict = {
+                "mAP@50": ap50.item(),
+                "mAP@50-95": ap50_95.item(),
+                "Precision": p.mean().item(),
+                "Recall": r.mean().item()
+            }
+            try:
+                with open(output_path, 'w') as f:
+                    json.dump(eval_dict, f, indent=4)
+                print(f"Saved evaluation results to {output_path}")
+            except Exception as e:
+                print(f"Error saving evaluation results: {e}")
         return results
-
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--gt", type=str, required=True, help="Path to ground truth labels folder")
-    parser.add_argument("--pred", type=str, required=True, help="Path to predicted labels folder")
-    
-    evaluator = OliveEvaluator(args.gt, args.pred)
-    evaluator.evaluate()

@@ -1,3 +1,4 @@
+import json
 import cv2
 import numpy as np
 import os
@@ -434,3 +435,16 @@ my_folder = '/mnt/c/Datasets/Olive/normalized/to_check'
 all_jpgs = get_all_jpg_paths(my_folder)
 
 print(all_jpgs)
+
+def save_config_file(config, path):
+    """
+    Saves the configuration dictionary to a valid JSON file.
+    """
+    try:
+        with open(path, "w") as f:
+            # json.dump handles all the formatting, quotes, and braces for you
+            json.dump(config, f, indent=4)
+            
+        print(f"Configuration saved to: {path}")
+    except Exception as e:
+        print(f"Error saving configuration: {e}")

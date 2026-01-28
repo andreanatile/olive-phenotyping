@@ -4,16 +4,16 @@ from src.models.evaluator import OliveEvaluator
 import os
 from src.utils.slice_detection_utils import save_config_file
 
-model_path = "checkpoints/best.pt"
+model_path = "checkpoints/best_seg.pt"
 # Initialize Segmenter
 segmenter = OliveSegmenter(model_path)
 
 # Configuration
-folder_path="/mnt/c/Datasets/OlivePG/bbox_gt_ul_80/val"
-conf=0.5
+folder_path="/mnt/c/Datasets/OlivePG/olive_dataset_yolo/val"
+conf=0.7
 overlap_ratio=0.2
-slice_size=1280
-output_path="/mnt/c/Datasets/OlivePG/segmentation_result_best_val_0.5_0.2_1280"
+slice_size=640
+output_path="/mnt/c/Datasets/OlivePG/segmentation_result_nano_0.5_0.2_640"
 outputs_labels_dir=os.path.join(output_path, "labels")
 times_path=os.path.join(output_path, "times_summary.json")
 metrics_path=os.path.join(output_path, "evaluation_summary.json")

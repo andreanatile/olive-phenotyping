@@ -3,6 +3,8 @@ import yaml
 import torch
 import cv2
 import numpy as np
+import json
+import os
 
 
 def parse_cfg(yaml_file_path):
@@ -84,7 +86,7 @@ def plot_results(
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-def times_analyzer(times_summary: dict):
+def times_analyzer(times_summary: dict,save_json: bool = False, output_path: str = "times_summary.json"):
     """
     Analyzes the times summary dictionary to compute average times for each stage.
     """
@@ -123,5 +125,20 @@ def times_analyzer(times_summary: dict):
         "average_nms_time": total_nms / total_images,
         "average_counting_time": total_counting / total_images,
     }
+    if save_json:
+        try:
+            # Extract the directory from the path
+            directory = os.path.dirname(output_path)
+            
+            # If the path contains a directory and it doesn't exist, create it
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory)
+                print(f"Created directories: {directory}")
 
-    return avg_times,max_total_counting_time
+            with open(output_path, 'w') as f:
+                json.dump(avg_times, f, indent=4)
+            print(f"Results successfully saved to {output_path}")
+        except Exception as e:
+            print(f"Error saving JSON: {e}")
+
+    return avg_times, max_total_counting_time

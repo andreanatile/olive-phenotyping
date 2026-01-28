@@ -76,7 +76,7 @@ class OliveEvaluator:
                 
         return torch.tensor(correct, dtype=torch.bool)
 
-    def evaluate(self):
+    def evaluate(self, save_json: bool = False, output_path: str = None):
         """
         Evaluates the predictions against the ground truth.
         """
@@ -181,8 +181,8 @@ class OliveEvaluator:
         # results: (precision, recall, ap, f1, unique_classes)
         # ap is (nc, 10)
         
-        p, r, ap, f1, unique_classes = results
-        
+        tp,fp, p, r, f1,ap, _,_,_,_,_,_ = results
+       
         # Calculate mAP
         ap50 = ap[:, 0].mean()
         ap50_95 = ap.mean()
@@ -200,7 +200,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gt", type=str, required=True, help="Path to ground truth labels folder")
     parser.add_argument("--pred", type=str, required=True, help="Path to predicted labels folder")
-    args = parser.parse_args()
     
     evaluator = OliveEvaluator(args.gt, args.pred)
     evaluator.evaluate()

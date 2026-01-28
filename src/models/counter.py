@@ -163,10 +163,14 @@ class OliveCounter:
         keep_indices = nms(combined_boxes, combined_scores, iou_threshold)
 
         final_boxes = combined_boxes[keep_indices]
-        total_olives = len(final_boxes)
+        final_scores = combined_scores[keep_indices]
+        
+        # Combine boxes and scores: [x1, y1, x2, y2, score]
+        final_data = torch.cat([final_boxes, final_scores.unsqueeze(1)], dim=1)
+        total_olives = len(final_data)
 
         print(f"Final Count: {total_olives}")
-        return total_olives, final_boxes
+        return total_olives, final_data
 
     def save_labels(self, final_boxes, img_path_obj: Path, output_dir: str = "labels", class_id: int = 0):
         """
@@ -184,9 +188,15 @@ class OliveCounter:
         txt_file = out_path / f"{img_path_obj.stem}.txt"
 
         with txt_file.open("w") as f:
-            for box in final_boxes:
-                x1, y1, x2, y2 = box.tolist()
-
+            for item in final_boxes:
+                # Handle both 4-element (box only) and 5-element (box + score) cases
+                item_list = item.tolist()
+                if len(item_list) == 5:
+                    x1, y1, x2, y2, conf = item_list
+                else:
+                    x1, y1, x2, y2 = item_list
+                    conf = 1.0 # Default if missing
+                
                 # Conversion to YOLO center-based format
                 w = x2 - x1
                 h = y2 - y1
@@ -194,7 +204,7 @@ class OliveCounter:
                 y_center = y1 + (h / 2)
 
                 # Normalization
-                f.write(f"{class_id} {x_center/img_w:.6f} {y_center/img_h:.6f} {w/img_w:.6f} {h/img_h:.6f}\n")
+                f.write(f"{class_id} {x_center/img_w:.6f} {y_center/img_h:.6f} {w/img_w:.6f} {h/img_h:.6f} {conf:.6f}\n")
         
         print(f"Saved: {txt_file}")
 

@@ -68,18 +68,6 @@ def prepare_olive_dataset(json_file, image_dir, output_dir, train_ratio=0.8):
 
     print(f"Dataset created successfully in: {output_dir}")
 
-# --- SETTINGS ---
-
-json_file="/mnt/c/Datasets/OlivePG/old/prova/result_coco.json"
-image_dir="/mnt/c/Datasets/OlivePG/old/prova/images"
-output_path="/mnt/c/Datasets/OlivePG/olive_dataset_yolo"
-prepare_olive_dataset(
-    json_file=json_file, # Path to your Label Studio JSON
-    image_dir=image_dir,   # Folder where original images are
-    output_dir=output_path,       # Where you want the final dataset
-    train_ratio=0.8                        # 80% Train, 20% Val
-)
-
 def yolo_to_mask(txt_path, shape):
     """
     Converts YOLO segmentation format (txt) to a binary mask.

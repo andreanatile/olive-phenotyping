@@ -430,11 +430,6 @@ def get_all_jpg_paths(directory):
                 
     return jpg_path_list
 
-# Example Usage:
-my_folder = '/mnt/c/Datasets/Olive/normalized/to_check'
-all_jpgs = get_all_jpg_paths(my_folder)
-
-print(all_jpgs)
 
 def save_config_file(config, path):
     """

@@ -80,6 +80,44 @@ prepare_olive_dataset(
     train_ratio=0.8                        # 80% Train, 20% Val
 )
 
+def yolo_to_mask(txt_path, shape):
+    """
+    Converts YOLO segmentation format (txt) to a binary mask.
+    shape: tuple (height, width)
+    """
+    h, w = shape
+    mask = np.zeros((h, w), dtype=np.uint8)
+    
+    if not os.path.exists(txt_path):
+        return mask
+        
+    with open(txt_path, 'r') as f:
+        lines = f.readlines()
+        
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) < 3: 
+            continue
+            
+        # Parse coordinates (skip class_id at index 0)
+        coords = [float(x) for x in parts[1:]]
+        
+        # Convert to pixels
+        points = []
+        for i in range(0, len(coords), 2):
+            if i + 1 < len(coords):
+                px = int(coords[i] * w)
+                py = int(coords[i+1] * h)
+                points.append([px, py])
+            
+        if points:
+            pts = np.array(points, dtype=np.int32)
+            pts = pts.reshape((-1, 1, 2))
+            # Draw polygon
+            cv2.fillPoly(mask, [pts], (255))
+            
+    return mask
+
 def visualize_segmentation_comparison(pred_dir, gt_dir, img_dir, output_dir, file_extension="*.jpg"):
     """
     Visualizes comparison between Predicted and Ground Truth masks overlaid on original images.
@@ -128,18 +166,23 @@ def visualize_segmentation_comparison(pred_dir, gt_dir, img_dir, output_dir, fil
             continue
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         
-        pred_mask = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
-        gt_mask = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+        # Helper to load mask (handles images and YOLO txt)
+        def load_mask(path, target_shape):
+            if path.endswith('.txt'):
+                return yolo_to_mask(path, target_shape)
+            else:
+                m = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+                if m is None: return None
+                if m.shape != target_shape:
+                    m = cv2.resize(m, (target_shape[1], target_shape[0]), interpolation=cv2.INTER_NEAREST)
+                return m
+
+        pred_mask = load_mask(pred_path, img.shape[:2])
+        gt_mask = load_mask(gt_path, img.shape[:2])
         
         if pred_mask is None or gt_mask is None:
             print(f"Error loading masks for {basename}")
             continue
-
-        # Resize masks to match image if necessary
-        if pred_mask.shape != img.shape[:2]:
-            pred_mask = cv2.resize(pred_mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
-        if gt_mask.shape != img.shape[:2]:
-            gt_mask = cv2.resize(gt_mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
 
         # Create overlays
         def create_overlay(image, mask, color=(0, 255, 0), alpha=0.5):

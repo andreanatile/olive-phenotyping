@@ -3,6 +3,10 @@ import json
 import shutil
 import random
 from pathlib import Path
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+import glob
 
 def prepare_olive_dataset(json_file, image_dir, output_dir, train_ratio=0.8):
     # 1. Load COCO JSON
@@ -75,3 +79,101 @@ prepare_olive_dataset(
     output_dir=output_path,       # Where you want the final dataset
     train_ratio=0.8                        # 80% Train, 20% Val
 )
+
+def visualize_segmentation_comparison(pred_dir, gt_dir, img_dir, output_dir, file_extension="*.jpg"):
+    """
+    Visualizes comparison between Predicted and Ground Truth masks overlaid on original images.
+    
+    Args:
+        pred_dir (str): Directory containing predicted masks.
+        gt_dir (str): Directory containing ground truth masks.
+        img_dir (str): Directory containing original images.
+        output_dir (str): Directory to save the comparison plots.
+        file_extension (str): File extension to search for (default: "*.jpg").
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # search for files in img_dir with the given extension
+    search_path = os.path.join(img_dir, file_extension)
+    img_files = glob.glob(search_path)
+    
+    if not img_files:
+        print(f"No files found in {img_dir} with extension {file_extension}")
+        return
+
+    print(f"Found {len(img_files)} images. Starting visualization...")
+
+    for img_path in img_files:
+        basename = os.path.basename(img_path)
+        name_no_ext = os.path.splitext(basename)[0]
+        
+        # Try finding corresponding masks. 
+        # Strategy: Look for name_no_ext.* in pred and gt dirs to handle different extensions (e.g. png vs jpg)
+        pred_candidates = glob.glob(os.path.join(pred_dir, f"{name_no_ext}.*"))
+        gt_candidates = glob.glob(os.path.join(gt_dir, f"{name_no_ext}.*"))
+        
+        if not pred_candidates:
+            print(f"Warning: No predicted mask found for {basename}")
+            continue
+        if not gt_candidates:
+            print(f"Warning: No GT mask found for {basename}")
+            continue
+            
+        pred_path = pred_candidates[0]
+        gt_path = gt_candidates[0]
+        
+        # Load Images
+        img = cv2.imread(img_path)
+        if img is None:
+            continue
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+        pred_mask = cv2.imread(pred_path, cv2.IMREAD_GRAYSCALE)
+        gt_mask = cv2.imread(gt_path, cv2.IMREAD_GRAYSCALE)
+        
+        if pred_mask is None or gt_mask is None:
+            print(f"Error loading masks for {basename}")
+            continue
+
+        # Resize masks to match image if necessary
+        if pred_mask.shape != img.shape[:2]:
+            pred_mask = cv2.resize(pred_mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
+        if gt_mask.shape != img.shape[:2]:
+            gt_mask = cv2.resize(gt_mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
+
+        # Create overlays
+        def create_overlay(image, mask, color=(0, 255, 0), alpha=0.5):
+            overlay = image.copy()
+            colored_mask = np.zeros_like(image)
+            colored_mask[mask > 0] = color
+            
+            mask_bool = mask > 0
+            # Ensure safe broadcasting/indexing
+            if mask_bool.any():
+                overlay[mask_bool] = cv2.addWeighted(overlay[mask_bool], 1-alpha, colored_mask[mask_bool], alpha, 0)
+            return overlay
+
+        gt_overlay = create_overlay(img, gt_mask, color=(0, 255, 0)) # Green for GT
+        pred_overlay = create_overlay(img, pred_mask, color=(255, 0, 0)) # Red for Pred
+
+        # Plot
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        
+        axes[0].imshow(img)
+        axes[0].set_title("Original Image")
+        axes[0].axis('off')
+        
+        axes[1].imshow(gt_overlay)
+        axes[1].set_title("Ground Truth (Green)")
+        axes[1].axis('off')
+        
+        axes[2].imshow(pred_overlay)
+        axes[2].set_title("Prediction (Red)")
+        axes[2].axis('off')
+        
+        plt.tight_layout()
+        out_file = os.path.join(output_dir, f"vis_{basename}")
+        plt.savefig(out_file)
+        plt.close(fig)
+        
+    print(f"Visualization complete. Saved to {output_dir}")

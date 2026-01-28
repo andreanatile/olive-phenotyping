@@ -18,6 +18,9 @@ class OliveEvaluator:
     def load_txt_labels(self, path: Path):
         """
         Loads labels from a YOLO-format text file.
+        Supports both Box (class x y w h) and Polygon (class x1 y1 ... xn yn) formats.
+        For polygons, converts to bounding box (x_center, y_center, w, h).
+        
         Returns:
             cls: Tensor of shape (N,)
             boxes: Tensor of shape (N, 4) in xyxy format (normalized)
@@ -26,24 +29,58 @@ class OliveEvaluator:
             return torch.zeros(0), torch.zeros(0, 4)
         
         try:
-            # Read file
-            data = np.loadtxt(path)
+            # Read file line by line to handle variable length lines (polygons)
+            with open(path, 'r') as f:
+                lines = f.readlines()
         except Exception:
-            # Handle empty files or errors
             return torch.zeros(0), torch.zeros(0, 4)
             
-        if data.ndim == 0:
+        if not lines:
             return torch.zeros(0), torch.zeros(0, 4)
-        if data.ndim == 1:
-            data = data[None, :]
+
+        cls_list = []
+        boxes_list = []
+
+        for line in lines:
+            parts = list(map(float, line.strip().split()))
+            if not parts:
+                continue
             
-        # Parse columns: class, x_center, y_center, w, h
-        cls = torch.from_numpy(data[:, 0])
-        xywh = torch.from_numpy(data[:, 1:5])
+            c = parts[0]
+            coords = parts[1:]
+            
+            if len(coords) == 4:
+                # Box format: x_center, y_center, w, h
+                # Convert to xyxy later
+                # Store as xywh for consistency with batch processing or process here?
+                # Let's process here to xyxy immediately
+                x_c, y_c, w, h = coords
+                x1 = x_c - w / 2
+                y1 = y_c - h / 2
+                x2 = x_c + w / 2
+                y2 = y_c + h / 2
+                boxes_list.append([x1, y1, x2, y2])
+                cls_list.append(c)
+                
+            elif len(coords) > 4:
+                # Polygon format
+                # coords are [x1, y1, x2, y2, ...]
+                # Reshape to (N, 2)
+                poly = np.array(coords).reshape(-1, 2)
+                x_min = poly[:, 0].min()
+                y_min = poly[:, 1].min()
+                x_max = poly[:, 0].max()
+                y_max = poly[:, 1].max()
+                boxes_list.append([x_min, y_min, x_max, y_max])
+                cls_list.append(c)
+
+        if not cls_list:
+            return torch.zeros(0), torch.zeros(0, 4)
+            
+        cls = torch.tensor(cls_list)
+        boxes = torch.tensor(boxes_list) 
         
-        # Convert xywh to xyxy
-        boxes = xywh2xyxy(xywh)
-        
+        # boxes are already in xyxy normalized
         return cls, boxes
 
     def match_predictions(self, pred_classes, true_classes, iou):

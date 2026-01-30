@@ -13,8 +13,9 @@ segmenter = OliveSegmenter(model_path)
 folder_path="/mnt/c/Datasets/OlivePG/olive_dataset_yolo/val"
 conf=0.5
 overlap_ratio=0.2
-slice_size=640
-output_path="/mnt/c/Datasets/OlivePG/segmentation_result_nano_0.5_0.2_640"
+slice_size=1280
+iou_threshold=0.5
+output_path="/mnt/c/Datasets/OlivePG/segmentation_result_nano_0.5_0.2_1280"
 outputs_labels_dir=os.path.join(output_path, "labels")
 times_path=os.path.join(output_path, "times_summary.json")
 metrics_path=os.path.join(output_path, "evaluation_summary.json")
@@ -31,7 +32,8 @@ results_summary, times_summary = segmenter.segment_folder(
     conf=conf, 
     overlap_ratio=overlap_ratio, 
     slice_size=slice_size, 
-    output_label_dir=outputs_labels_dir
+    output_label_dir=outputs_labels_dir,
+    iou_threshold=iou_threshold
 )
 
 # Analyze times and save to JSON
@@ -56,7 +58,8 @@ config = {
     "output_path": output_path,
     "outputs_labels_dir": outputs_labels_dir,
     "times_path": times_path,
-    "metrics_path": metrics_path
+    "metrics_path": metrics_path,
+    "iou_threshold": iou_threshold
 }
 save_config_file(config, config_path)
 print("Done.")

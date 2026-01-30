@@ -29,7 +29,8 @@ class OliveSegmenter:
         overlap_ratio: float = 0.2,
         slice_size: int = 640,
         save_final_labels: bool = False,
-        output_label_dir: str = "labels"
+        output_label_dir: str = "labels",
+        iou_threshold: float = 0.5,
     ):
         """
         Segment olives inside the image using YOLO model.
@@ -68,7 +69,7 @@ class OliveSegmenter:
         start_nms_time = time.time()
         # Apply NMS and get final results with masks
         total_count, final_data = self.nms_segment(
-            results, coordinates, iou_threshold=0.15
+            results, coordinates, iou_threshold=iou_threshold
         )
         end_nms_time = time.time()
 
@@ -209,7 +210,7 @@ class OliveSegmenter:
         
         print(f"Saved: {txt_file}")
 
-    def segment_folder(self, folder_path: str, conf: float = 0.25, slice_size: int = 640, overlap_ratio: float = 0.5, save_final_labels: bool = True, output_label_dir: str = "labels"):
+    def segment_folder(self, folder_path: str, conf: float = 0.25, slice_size: int = 640, overlap_ratio: float = 0.5, save_final_labels: bool = True, output_label_dir: str = "labels", iou_threshold: float = 0.5):
         """
         Segments olives for every image in a folder.
         """
@@ -234,7 +235,8 @@ class OliveSegmenter:
                     slice_size=slice_size,
                     save_final_labels=save_final_labels,
                     overlap_ratio=overlap_ratio,
-                    output_label_dir=output_label_dir
+                    output_label_dir=output_label_dir,
+                    iou_threshold=iou_threshold
                 )
                 results_summary[img_path.name] = {
                     "number of olive": total_count,

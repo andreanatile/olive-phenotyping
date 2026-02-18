@@ -3,15 +3,15 @@ from src.models.utils import  times_analyzer
 from src.models.evaluator import OliveEvaluator
 import os
 from src.utils.slice_detection_utils import save_config_file
-model_path = "checkpoints/best.pt"
+model_path = "runs/detection_patch_comparison/fb_comp_yolo11n/weights/best.pt"
 counter = OliveCounter(model_path)
 
 # Configuration
 folder_path="/mnt/c/Datasets/OlivePG/bbox_gt_ul_80/val"
 conf=0.5
 overlap_ratio=0.2
-slice_size=1280
-output_path="/mnt/c/Datasets/OlivePG/count_result_best_val_0.5_0.2_1280"
+slice_size=640
+output_path="/mnt/c/Datasets/OlivePG/count_result_best_val_0.5_0.2_640"
 outputs_labels_dir=os.path.join(output_path, "labels")
 times_path=os.path.join(output_path, "times_summary.json")
 metrics_path=os.path.join(output_path, "evaluation_summary.json")

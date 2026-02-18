@@ -12,10 +12,10 @@ segmenter = OliveSegmenter(model_path)
 # Configuration
 folder_path="/mnt/c/Datasets/OlivePG/olive_dataset_yolo/val"
 conf=0.5
-overlap_ratio=0.2
-slice_size=1280
-iou_threshold=0.5
-output_path="/mnt/c/Datasets/OlivePG/segmentation_result_nano_0.5_0.2_1280"
+overlap_ratio=0.1
+slice_size=640
+iou_threshold=0.2
+output_path="/mnt/c/Datasets/OlivePG/segmentation_result_nano_0.5_0.1_640_0.20"
 outputs_labels_dir=os.path.join(output_path, "labels")
 times_path=os.path.join(output_path, "times_summary.json")
 metrics_path=os.path.join(output_path, "evaluation_summary.json")
@@ -66,4 +66,4 @@ print("Done.")
 
 
 
-visualize_segmentation_comparison(pred_dir=outputs_labels_dir, gt_dir=gt_folder_path, img_dir=images_gt_path, output_dir=visualize_predict_gt_folder)
+#visualize_segmentation_comparison(pred_dir=outputs_labels_dir, gt_dir=gt_folder_path, img_dir=images_gt_path, output_dir=visualize_predict_gt_folder)

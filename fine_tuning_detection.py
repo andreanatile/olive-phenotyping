@@ -5,7 +5,7 @@ import os
 
 # 1. Configuration
 model_variants = ['yolo11n.pt', 'yolo11s.pt', 'yolo11m.pt']
-dataset_path = "/mnt/c/Datasets/OlivePG/bbox_gt_ul_80/bbox_gt_ul_80.yaml"
+dataset_path = "/mnt/c/Datasets/OlivePG/bbox_gt_ul_640/bbox_gt_ul_640.yaml"
 comparison_results = []
 
 for model_name in model_variants:
@@ -19,14 +19,14 @@ for model_name in model_variants:
         epochs=100,
         patience=10,
         imgsz=640,
-        project="ModelComparison",
+        project="detection_patch_comparison",
         name=run_name,
         exist_ok=True        # Overwrites folder if it exists
     )
     
     # 3. Optimize Saved Weights (Optional)
     # This reduces file size for all saved checkpoints in the weights folder
-    weights_dir = f"ModelComparison/{run_name}/weights"
+    weights_dir = f"detection_patch_comparison/{run_name}/weights"
     for weight_file in os.listdir(weights_dir):
         if weight_file.endswith(".pt"):
             strip_optimizer(os.path.join(weights_dir, weight_file))

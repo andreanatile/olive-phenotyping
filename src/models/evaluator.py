@@ -40,6 +40,7 @@ class OliveEvaluator:
 
         cls_list = []
         boxes_list = []
+        conf_list = []
 
         for line in lines:
             parts = list(map(float, line.strip().split()))
@@ -51,9 +52,6 @@ class OliveEvaluator:
             
             if len(coords) == 4:
                 # Box format: x_center, y_center, w, h
-                # Convert to xyxy later
-                # Store as xywh for consistency with batch processing or process here?
-                # Let's process here to xyxy immediately
                 x_c, y_c, w, h = coords
                 x1 = x_c - w / 2
                 y1 = y_c - h / 2
@@ -61,8 +59,20 @@ class OliveEvaluator:
                 y2 = y_c + h / 2
                 boxes_list.append([x1, y1, x2, y2])
                 cls_list.append(c)
-                
-            elif len(coords) > 4:
+                conf_list.append(1.0) # Default confidence if missing
+
+            elif len(coords) == 5:
+                # Box format with confidence: x_center, y_center, w, h, conf
+                x_c, y_c, w, h, conf = coords
+                x1 = x_c - w / 2
+                y1 = y_c - h / 2
+                x2 = x_c + w / 2
+                y2 = y_c + h / 2
+                boxes_list.append([x1, y1, x2, y2])
+                cls_list.append(c)
+                conf_list.append(conf)
+
+            elif len(coords) > 5:
                 # Polygon format
                 # coords are [x1, y1, x2, y2, ...]
                 # Reshape to (N, 2)
@@ -73,15 +83,17 @@ class OliveEvaluator:
                 y_max = poly[:, 1].max()
                 boxes_list.append([x_min, y_min, x_max, y_max])
                 cls_list.append(c)
+                conf_list.append(1.0) # Default confidence for polygons
 
         if not cls_list:
-            return torch.zeros(0), torch.zeros(0, 4)
+            return torch.zeros(0), torch.zeros(0, 4), torch.zeros(0)
             
         cls = torch.tensor(cls_list)
         boxes = torch.tensor(boxes_list) 
+        confs = torch.tensor(conf_list)
         
         # boxes are already in xyxy normalized
-        return cls, boxes
+        return cls, boxes, confs
 
     def match_predictions(self, pred_classes, true_classes, iou):
         """
@@ -131,14 +143,14 @@ class OliveEvaluator:
             pred_file = self.pred_folder / f"{stem}.txt"
             
             # Load GT
-            target_cls, target_boxes = self.load_txt_labels(gt_file)
+            target_cls, target_boxes, _ = self.load_txt_labels(gt_file)
             
             # Load Preds
             # If pred file doesn't exist, we assume no detections
             if not pred_file.exists():
-                pred_cls, pred_boxes = torch.zeros(0), torch.zeros(0, 4)
+                pred_cls, pred_boxes, conf = torch.zeros(0), torch.zeros(0, 4), torch.zeros(0)
             else:
-                pred_cls, pred_boxes = self.load_txt_labels(pred_file)
+                pred_cls, pred_boxes, conf = self.load_txt_labels(pred_file)
                 
             # Initialize stats components
             if pred_cls.shape[0] == 0:

@@ -5,7 +5,7 @@ import os
 from src.utils.slice_detection_utils import save_config_file
 from src.utils.segmentation_utils import visualize_segmentation_comparison
 
-model_path = "checkpoints/best_seg.pt"
+model_path = "runs/segmentation_patch_comparison/fb_seg_comp_yolo11n/weights/best.pt"
 # Initialize Segmenter
 segmenter = OliveSegmenter(model_path)
 
@@ -15,7 +15,7 @@ conf=0.5
 overlap_ratio=0.1
 slice_size=640
 iou_threshold=0.2
-output_path="/mnt/c/Datasets/OlivePG/segmentation_result_nano_0.5_0.1_640_0.20"
+output_path="/mnt/c/Datasets/OlivePG/segmentation_results/segmentation_result_n_0.5_0.1_640_0.20"
 outputs_labels_dir=os.path.join(output_path, "labels")
 times_path=os.path.join(output_path, "times_summary.json")
 metrics_path=os.path.join(output_path, "evaluation_summary.json")

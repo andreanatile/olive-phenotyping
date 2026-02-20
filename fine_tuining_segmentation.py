@@ -5,8 +5,9 @@ import os
 
 # 1. Configuration - Use Segmentation models (-seg)
 # Options: yolo11n-seg.pt, yolo11s-seg.pt, yolo11m-seg.pt
-model_variants = ['yolo11n-seg.pt', 'yolo11s-seg.pt', 'yolo11m-seg.pt']
-dataset_path = "/mnt/c/Datasets/OlivePG/olive_dataset_yolo/data.yaml"
+#model_variants = ['yolo11n-seg.pt', 'yolo11s-seg.pt', 'yolo11m-seg.pt']
+model_variants = [ 'yolo11m-seg.pt']
+dataset_path = "/mnt/c/Datasets/OlivePG/seg_tiled_640/config_seg_640.yaml"
 comparison_results = []
 
 for model_name in model_variants:
@@ -20,7 +21,7 @@ for model_name in model_variants:
         epochs=100,
         patience=10,
         imgsz=640,
-        project="SegmentComparison",
+        project="segmentation_patch_comparison",
         name=run_name,
         exist_ok=True
     )

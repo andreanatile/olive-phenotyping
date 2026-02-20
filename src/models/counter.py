@@ -66,7 +66,8 @@ class OliveCounter:
         overlap_ratio: float = 0.2,
         slice_size: int = 640,
         save_final_boxes: bool = False,
-        output_label_dir: str = "labels"
+        output_label_dir: str = "labels",
+        iou_threshold: float = 0.15
     ):
         """
         Count the number of olives inside the image using YOLO model.
@@ -103,7 +104,7 @@ class OliveCounter:
         start_nms_time=time.time()
         # Apply NMS and get final count
         total_count, final_boxes = self.nms_count(
-            results, coordinates, iou_threshold=0.15
+            results, coordinates, iou_threshold=iou_threshold
         )
         end_nms_time=time.time()
 
@@ -209,7 +210,7 @@ class OliveCounter:
         
         print(f"Saved: {txt_file}")
 
-    def count_folder(self, folder_path: str, conf: float = 0.25, slice_size: int = 640,overlap_ratio: float = 0.5, save_final_boxes: bool = True, output_label_dir: str = "labels"):
+    def count_folder(self, folder_path: str, conf: float = 0.25, slice_size: int = 640,overlap_ratio: float = 0.5, save_final_boxes: bool = True, output_label_dir: str = "labels", iou_threshold: float = 0.15):
         """
         Counts olives for every image in a folder and saves the results.
         """
@@ -237,6 +238,7 @@ class OliveCounter:
                     slice_size=slice_size,
                     save_final_boxes=save_final_boxes,
                     overlap_ratio=overlap_ratio,
+                    iou_threshold=iou_threshold,
                     output_label_dir=output_label_dir
                 )
                 results_summary[img_path.name] ={"number of olive":total_count,

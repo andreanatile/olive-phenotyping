@@ -3,15 +3,17 @@ from src.models.utils import  times_analyzer
 from src.models.evaluator import OliveEvaluator
 import os
 from src.utils.slice_detection_utils import save_config_file
-model_path = "runs/detection_patch_comparison/fb_comp_yolo11n/weights/best.pt"
+#model_path = "runs/detection_patch_comparison/fb_comp_yolo11n/weights/best.pt"
+model_path = "runs/detection_patch_comparison/fb_comp_yolo11m/weights/best.pt"
 counter = OliveCounter(model_path)
 
 # Configuration
 folder_path="/mnt/c/Datasets/OlivePG/bbox_gt_ul_80/val"
 conf=0.5
-overlap_ratio=0.2
+overlap_ratio=0.1
 slice_size=640
-output_path="/mnt/c/Datasets/OlivePG/count_result_best_val_0.5_0.2_640"
+iou_threshold=0.10
+output_path="/mnt/c/Datasets/OlivePG/results_counting/count_result_m_val_0.5_0.1_640_0.10"
 outputs_labels_dir=os.path.join(output_path, "labels")
 times_path=os.path.join(output_path, "times_summary.json")
 metrics_path=os.path.join(output_path, "evaluation_summary.json")
@@ -20,7 +22,7 @@ config_path=os.path.join(output_path, "counting_config.json")
 
 
 # Count the olives in the folder and save the final labels and times summary
-results_summary,times_summary = counter.count_folder(folder_path=folder_path, conf=conf, overlap_ratio=overlap_ratio, slice_size=slice_size, output_label_dir=outputs_labels_dir)
+results_summary,times_summary = counter.count_folder(folder_path=folder_path, conf=conf, overlap_ratio=overlap_ratio, slice_size=slice_size, output_label_dir=outputs_labels_dir, iou_threshold=iou_threshold   )
 
 # Analyze times and save to JSON
 times_analyzer(times_summary,save_json=True, output_path=times_path)
@@ -41,6 +43,7 @@ config={
     "output_path": output_path,
     "outputs_labels_dir": outputs_labels_dir,
     "times_path": times_path,
-    "metrics_path": metrics_path
+    "metrics_path": metrics_path,
+    "config_path": iou_threshold
 }
 save_config_file(config, config_path)

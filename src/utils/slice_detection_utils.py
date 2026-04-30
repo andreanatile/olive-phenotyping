@@ -443,3 +443,55 @@ def save_config_file(config, path):
         print(f"Configuration saved to: {path}")
     except Exception as e:
         print(f"Error saving configuration: {e}")
+
+
+
+def slicer_kfold(
+    kfold_dir,
+    output_dir,
+    slice_size=640,
+    overlap_ratio=0.2,
+    keep_empty_patch=True,
+    area_threshold=0.1,
+    save_visualization=False,
+):
+    """
+    Function for automatize slicing of an entire K-Fold dataset structure.
+    Iterates through 'split_1', 'split_2', etc., and slices 'train' and 'val' subfolders.
+    Args:
+        kfold_dir (str): Base directory containing K-Fold splits (e.g. 'split_1', 'split_2').
+        output_dir (str): Directory to save the new tiled K-Fold dataset.
+        slice_size (int): The side length of the square tiles (e.g., 640).
+        overlap_ratio (float): The fractional overlap (e.g., 0.2 for 20%).
+        keep_empty_patch (bool): Whether to keep tiles with no objects.
+        area_threshold (float): Minimun area of the bounding boxes label to keep after slicing the image.
+        save_visualization (bool): Whether to save visualization of labeled slices.
+    """
+    if not os.path.isdir(kfold_dir):
+        print(f"Error: K-Fold directory not found at {kfold_dir}")
+        return
+    # Iterate over all split directories (e.g., 'split_1', 'split_2')
+    for split_folder in os.listdir(kfold_dir):
+        split_input_path = os.path.join(kfold_dir, split_folder)
+        
+        if os.path.isdir(split_input_path):
+            print(f"\\n=== Processing {split_folder} ===")
+            split_output_path = os.path.join(output_dir, split_folder)
+            
+            # A split usually contains 'train' and 'val' sub-splits
+            for sub_split in ["train", "val"]:
+                input_dir = os.path.join(split_input_path, sub_split)
+                output_sub_dir = os.path.join(split_output_path, sub_split)
+                
+                if os.path.isdir(input_dir):
+                    slice_folder(
+                        data_dir=input_dir,
+                        output_dir=output_sub_dir,
+                        slice_size=slice_size,
+                        overlap_ratio=overlap_ratio,
+                        keep_empty_patch=keep_empty_patch,
+                        area_threshold=area_threshold,
+                        save_visualization=save_visualization,
+                    )
+                else:
+                    print(f"Warning: sub-split '{sub_split}' not found in {split_input_path}")

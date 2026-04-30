@@ -4,7 +4,7 @@ import yaml
 import pandas as pd 
 from pathlib import Path
 from collections import Counter
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, StratifiedKFold
 from tqdm import tqdm
 
 class KFoldSplitter: 
@@ -38,13 +38,19 @@ class KFoldSplitter:
         labels_df = labels_df.fillna(0.0)  # replace `nan` values with `0.0`
         return labels_df, labels, classes
 
-    def create_kfold_splits(self, dataset_path: str, yaml_path: str, save_dir: str = None):
+    def create_kfold_splits(self, dataset_path: str, yaml_path: str, save_dir: str = None, stratified: bool = False):
         """Generates K-Fold splits and copies images and labels."""
         dataset_path = Path(dataset_path)
         labels_df, labels, classes = self.generate_feature_vectors(dataset_path, yaml_path)
         
-        kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
-        kfolds = list(kf.split(labels_df))
+        if stratified:
+            # We use the most frequent class in each image as a proxy for stratification
+            y = labels_df.idxmax(axis=1)
+            kf = StratifiedKFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
+            kfolds = list(kf.split(labels_df, y))
+        else:
+            kf = KFold(n_splits=self.n_splits, shuffle=True, random_state=self.random_state)
+            kfolds = list(kf.split(labels_df))
 
         folds = [f"split_{n}" for n in range(1, self.n_splits + 1)]
         index = labels_df.index
@@ -119,4 +125,4 @@ if __name__=="__main__":
     # generate_feature_vectors just returns the dataframes. 
     # To actually find images and create splits, we should call create_kfold_splits.
     # splitter.generate_feature_vectors(dataset_path, yaml_path)
-    splitter.create_kfold_splits(dataset_path, yaml_path,"./puppy/kfold")
+    splitter.create_kfold_splits(dataset_path, yaml_path, "./puppy/kfold", stratified=True)

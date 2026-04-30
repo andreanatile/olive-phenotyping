@@ -470,6 +470,10 @@ def slicer_kfold(
     if not os.path.isdir(kfold_dir):
         print(f"Error: K-Fold directory not found at {kfold_dir}")
         return
+
+    # Append configuration to the output directory name
+    output_dir = f"{output_dir}_size{slice_size}_overlap{overlap_ratio}_thresh{area_threshold}"
+
     # Iterate over all split directories (e.g., 'split_1', 'split_2')
     for split_folder in os.listdir(kfold_dir):
         split_input_path = os.path.join(kfold_dir, split_folder)

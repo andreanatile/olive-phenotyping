@@ -56,10 +56,9 @@ def process_image(img_path, model, args):
     keep_indices = nms(combined_boxes, combined_scores, args.iou_threshold)
     final_boxes = combined_boxes[keep_indices]
 
-    # Organize outputs by image name
+    # Use the main output directory directly
     base_name = os.path.splitext(os.path.basename(img_path))[0]
-    img_out_dir = os.path.join(args.output_dir, base_name)
-    os.makedirs(img_out_dir, exist_ok=True)
+    img_out_dir = args.output_dir
 
     def draw_boxes(image, boxes, color, thickness=2):
         drawn_img = image.copy()
@@ -105,8 +104,8 @@ def process_image(img_path, model, args):
             
         supp_count = len(suppressed_p_boxes)
         
-        if args.only_suppressed and supp_count == 0:
-            continue # Skip patches with no suppression
+        if supp_count == 0:
+            continue # Save ONLY patches that contain a difference (suppression)
             
         # Plot and save
         tile_img = cv2.cvtColor(tiles[i], cv2.COLOR_BGR2RGB)
@@ -135,7 +134,7 @@ def process_image(img_path, model, args):
         axs[2].axis('off')
 
         plt.tight_layout()
-        out_path = os.path.join(img_out_dir, f"patch_{i:03d}.jpg")
+        out_path = os.path.join(img_out_dir, f"{base_name}_patch_{i:03d}.jpg")
         plt.savefig(out_path, dpi=150)
         plt.close(fig) # Prevent memory leaks
         patches_plotted += 1
@@ -173,8 +172,6 @@ if __name__ == "__main__":
     parser.add_argument("--slice_size", type=int, default=640, help="Size of each slice")
     parser.add_argument("--overlap_ratio", type=float, default=0.2, help="Overlap ratio between slices")
     parser.add_argument("--output_dir", type=str, default="patch_comparisons_folder", help="Directory to save the outputs")
-    parser.add_argument("--only_suppressed", action="store_true", help="Only plot patches that have >0 suppressed olives")
-    parser.add_argument("--save_empty", action="store_true", help="Save plots even for completely empty patches (no olives)")
     
     args = parser.parse_args()
     main(args)

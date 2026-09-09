@@ -242,8 +242,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Evaluate Open World Models (YOLO-World, Grounding DINO)")
-    parser.add_argument("--images_dir", type=str, required=True, help="Path to folder containing images")
-    parser.add_argument("--labels_dir", type=str, required=True, help="Path to folder containing YOLO format labels")
+    parser.add_argument("--dir_path", type=str, required=True, help="Path to folder containing images and labels")
     parser.add_argument("--model", type=str, choices=['yolo_world', 'grounding_dino'], default='yolo_world', help="Model to use")
     parser.add_argument("--prompt", type=str, default="olive", help="Text prompt / class name to search for")
     parser.add_argument("--iou", type=float, default=0.5, help="IoU threshold for matching")
@@ -252,8 +251,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     run_evaluation(
-        images_dir=args.images_dir,
-        labels_dir=args.labels_dir,
+        images_dir=os.path.join(args.dir_path, "images"),
+        labels_dir=os.path.join(args.dir_path, "labels"),
         model_type=args.model,
         text_prompt=args.prompt,
         iou_threshold=args.iou,

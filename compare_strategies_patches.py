@@ -38,8 +38,8 @@ def main(args):
         if len(res.boxes) == 0:
             continue
         x_offset, y_offset, _, _ = coordinates[i]
-        boxes = res.boxes.xyxy.clone().detach()
-        scores = res.boxes.conf.clone().detach()
+        boxes = res.boxes.xyxy.clone().detach().cpu()
+        scores = res.boxes.conf.clone().detach().cpu()
 
         # Translate to global space
         boxes[:, [0, 2]] += x_offset
@@ -67,7 +67,7 @@ def main(args):
         tx1, ty1, tx2, ty2 = coordinates[i]
         
         # A. Patch original boxes (local to the patch)
-        p_boxes = res.boxes.xyxy.clone().detach() if len(res.boxes) > 0 else torch.empty((0, 4))
+        p_boxes = res.boxes.xyxy.clone().detach().cpu() if len(res.boxes) > 0 else torch.empty((0, 4))
         
         # B. Reconstructed boxes cropped to this tile (local to the patch)
         r_boxes_list = []
@@ -85,7 +85,7 @@ def main(args):
                 lx2, ly2 = ix2 - tx1, iy2 - ty1
                 r_boxes_list.append([lx1, ly1, lx2, ly2])
                 
-        r_boxes = torch.tensor(r_boxes_list) if r_boxes_list else torch.empty((0, 4))
+        r_boxes = torch.tensor(r_boxes_list).cpu() if r_boxes_list else torch.empty((0, 4)).cpu()
         
         # C. Find which original patch boxes were suppressed by global NMS
         if len(p_boxes) > 0 and len(r_boxes) > 0:

@@ -88,8 +88,8 @@ def process_image(img_path, model, args):
                 
         r_boxes = torch.tensor(r_boxes_list).cpu() if r_boxes_list else torch.empty((0, 4)).cpu()
         
-        # Skip completely empty patches (unless requested otherwise)
-        if len(p_boxes) == 0 and len(r_boxes) == 0 and not args.save_empty:
+        # Skip completely empty patches
+        if len(p_boxes) == 0 and len(r_boxes) == 0:
             continue
             
         if len(p_boxes) > 0 and len(r_boxes) > 0:

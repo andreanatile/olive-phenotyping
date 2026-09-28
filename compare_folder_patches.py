@@ -39,9 +39,12 @@ def process_image(img_path, model, args, top_candidates):
     # 1. Gather all global boxes
     all_global_boxes = []
     all_scores = []
+    patch_box_indices = []
+    global_idx = 0
     
     for i, res in enumerate(results):
         if len(res.boxes) == 0:
+            patch_box_indices.append([])
             continue
         x_offset, y_offset, _, _ = coordinates[i]
         boxes = res.boxes.xyxy.clone().detach().cpu()
@@ -52,6 +55,10 @@ def process_image(img_path, model, args, top_candidates):
 
         all_global_boxes.append(boxes)
         all_scores.append(scores)
+        
+        num_boxes = len(boxes)
+        patch_box_indices.append(list(range(global_idx, global_idx + num_boxes)))
+        global_idx += num_boxes
 
     if len(all_global_boxes) == 0:
         print("  -> No olives detected in any tile.")
@@ -63,6 +70,7 @@ def process_image(img_path, model, args, top_candidates):
     # 2. Apply NMS (Reconstruction Strategy)
     keep_indices = nms(combined_boxes, combined_scores, args.iou_threshold)
     final_boxes = combined_boxes[keep_indices]
+    keep_indices_set = set(keep_indices.tolist())
 
     base_name = os.path.splitext(os.path.basename(img_path))[0]
     
@@ -88,17 +96,21 @@ def process_image(img_path, model, args, top_candidates):
         if len(p_boxes) == 0 and len(r_boxes) == 0:
             continue
             
-        max_iou_val = 0.0
-        if len(p_boxes) > 0 and len(r_boxes) > 0:
-            ious = box_iou(p_boxes, r_boxes)
-            max_ious, _ = ious.max(dim=1)
-            max_iou_val = max_ious.max().item()
-            kept_mask = max_ious > 0.1 
+        if len(p_boxes) > 0:
+            indices = patch_box_indices[i]
+            kept_mask = torch.tensor([idx in keep_indices_set for idx in indices], dtype=torch.bool)
             kept_p_boxes = p_boxes[kept_mask]
             suppressed_p_boxes = p_boxes[~kept_mask]
+            
+            if len(suppressed_p_boxes) > 0 and len(r_boxes) > 0:
+                ious = box_iou(suppressed_p_boxes, r_boxes)
+                max_iou_val = ious.max().item()
+            else:
+                max_iou_val = 0.0
         else:
             kept_p_boxes = torch.empty((0, 4))
-            suppressed_p_boxes = p_boxes
+            suppressed_p_boxes = torch.empty((0, 4))
+            max_iou_val = 0.0
             
         supp_count = len(suppressed_p_boxes)
         

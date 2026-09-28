@@ -11,7 +11,15 @@ from glob import glob
 # Import slicing tools from the repo
 from src.utils.slice_detection_utils import slice_img
 
-def process_image(img_path, model, args):
+def draw_boxes(image, boxes, color, thickness=2):
+    drawn_img = image.copy()
+    if len(boxes) > 0:
+        for box in boxes:
+            x1, y1, x2, y2 = map(int, box.tolist())
+            cv2.rectangle(drawn_img, (x1, y1), (x2, y2), color, thickness)
+    return drawn_img
+
+def process_image(img_path, model, args, top_candidates):
     print(f"\nProcessing image: {img_path}")
     img = cv2.imread(img_path)
     if img is None:
@@ -56,19 +64,7 @@ def process_image(img_path, model, args):
     keep_indices = nms(combined_boxes, combined_scores, args.iou_threshold)
     final_boxes = combined_boxes[keep_indices]
 
-    # Use the main output directory directly
     base_name = os.path.splitext(os.path.basename(img_path))[0]
-    img_out_dir = args.output_dir
-
-    def draw_boxes(image, boxes, color, thickness=2):
-        drawn_img = image.copy()
-        if len(boxes) > 0:
-            for box in boxes:
-                x1, y1, x2, y2 = map(int, box.tolist())
-                cv2.rectangle(drawn_img, (x1, y1), (x2, y2), color, thickness)
-        return drawn_img
-
-    patches_plotted = 0
     
     for i, res in enumerate(results):
         tx1, ty1, tx2, ty2 = coordinates[i]
@@ -92,9 +88,11 @@ def process_image(img_path, model, args):
         if len(p_boxes) == 0 and len(r_boxes) == 0:
             continue
             
+        max_iou_val = 0.0
         if len(p_boxes) > 0 and len(r_boxes) > 0:
             ious = box_iou(p_boxes, r_boxes)
             max_ious, _ = ious.max(dim=1)
+            max_iou_val = max_ious.max().item()
             kept_mask = max_ious > 0.1 
             kept_p_boxes = p_boxes[kept_mask]
             suppressed_p_boxes = p_boxes[~kept_mask]
@@ -107,39 +105,25 @@ def process_image(img_path, model, args):
         if supp_count == 0:
             continue # Save ONLY patches that contain a difference (suppression)
             
-        # Plot and save
         tile_img = cv2.cvtColor(tiles[i], cv2.COLOR_BGR2RGB)
         
-        fig, axs = plt.subplots(1, 3, figsize=(18, 6))
-        fig.suptitle(f"Image: {base_name} | Patch #{i} | {supp_count} Suppressed Olives", fontsize=20)
+        patch_info = {
+            'base_name': base_name,
+            'patch_idx': i,
+            'tile_img': tile_img,
+            'p_boxes': p_boxes,
+            'r_boxes': r_boxes,
+            'kept_p_boxes': kept_p_boxes,
+            'suppressed_p_boxes': suppressed_p_boxes,
+            'supp_count': supp_count,
+            'max_iou': max_iou_val
+        }
         
-        # Left
-        img_patch = draw_boxes(tile_img, p_boxes, (255, 165, 0), thickness=2)
-        axs[0].imshow(img_patch)
-        axs[0].set_title(f"Patch Strategy ({len(p_boxes)} boxes)", fontsize=14)
-        axs[0].axis('off')
-        
-        # Center
-        img_recon = draw_boxes(tile_img, r_boxes, (0, 255, 0), thickness=2)
-        axs[1].imshow(img_recon)
-        axs[1].set_title(f"Reconstruction Strategy ({len(r_boxes)} boxes)", fontsize=14)
-        axs[1].axis('off')
-        
-        # Right
-        img_compare = tile_img.copy()
-        img_compare = draw_boxes(img_compare, kept_p_boxes, (0, 255, 0), thickness=2)
-        img_compare = draw_boxes(img_compare, suppressed_p_boxes, (255, 0, 0), thickness=3)
-        axs[2].imshow(img_compare)
-        axs[2].set_title(f"Highlight ({supp_count} suppressed in Red)", fontsize=14)
-        axs[2].axis('off')
-
-        plt.tight_layout()
-        out_path = os.path.join(img_out_dir, f"{base_name}_patch_{i:03d}.jpg")
-        plt.savefig(out_path, dpi=150)
-        plt.close(fig) # Prevent memory leaks
-        patches_plotted += 1
-
-    print(f"  -> Saved {patches_plotted} patch comparisons in {img_out_dir}")
+        top_candidates.append(patch_info)
+        # Keep only top 3, sorted by supp_count (desc) and max_iou (desc)
+        top_candidates.sort(key=lambda x: (x['supp_count'], x['max_iou']), reverse=True)
+        if len(top_candidates) > 3:
+            top_candidates.pop()
 
 
 def main(args):
@@ -157,10 +141,70 @@ def main(args):
         return
         
     print(f"Found {len(image_paths)} images. Starting processing...")
+    
+    top_candidates = []
     for img_path in image_paths:
-        process_image(img_path, model, args)
+        process_image(img_path, model, args, top_candidates)
         
-    print(f"\nAll done! Visualizations are organized by image in: {args.output_dir}")
+    if not top_candidates:
+        print("No differences found in any patches.")
+        return
+        
+    # Plot top candidates
+    fig, axs = plt.subplots(len(top_candidates), 3, figsize=(18, 6 * len(top_candidates)))
+    
+    # Handle single row case
+    if len(top_candidates) == 1:
+        axs = [axs]
+        
+    for row_idx, patch_data in enumerate(top_candidates):
+        base_name = patch_data['base_name']
+        i = patch_data['patch_idx']
+        supp_count = patch_data['supp_count']
+        tile_img = patch_data['tile_img']
+        p_boxes = patch_data['p_boxes']
+        r_boxes = patch_data['r_boxes']
+        kept_p_boxes = patch_data['kept_p_boxes']
+        suppressed_p_boxes = patch_data['suppressed_p_boxes']
+        
+        # Left
+        img_patch = draw_boxes(tile_img, p_boxes, (255, 165, 0), thickness=2)
+        axs[row_idx][0].imshow(img_patch)
+        t_left = f"Img: {base_name} | Patch #{i} ({len(p_boxes)} boxes)"
+        if row_idx == 0:
+            axs[row_idx][0].set_title(f"Patching Strategy\n{t_left}", fontsize=16, fontweight='bold')
+        else:
+            axs[row_idx][0].set_title(t_left, fontsize=14)
+        axs[row_idx][0].axis('off')
+        
+        # Center
+        img_recon = draw_boxes(tile_img, r_boxes, (0, 255, 0), thickness=2)
+        axs[row_idx][1].imshow(img_recon)
+        t_center = f"{len(r_boxes)} boxes"
+        if row_idx == 0:
+            axs[row_idx][1].set_title(f"Reconstruction Strategy\n{t_center}", fontsize=16, fontweight='bold')
+        else:
+            axs[row_idx][1].set_title(t_center, fontsize=14)
+        axs[row_idx][1].axis('off')
+        
+        # Right
+        img_compare = tile_img.copy()
+        img_compare = draw_boxes(img_compare, kept_p_boxes, (255, 165, 0), thickness=2)
+        img_compare = draw_boxes(img_compare, suppressed_p_boxes, (255, 0, 0), thickness=3)
+        axs[row_idx][2].imshow(img_compare)
+        t_right = f"{supp_count} suppressed in Red"
+        if row_idx == 0:
+            axs[row_idx][2].set_title(f"Highlight Differences\n{t_right}", fontsize=16, fontweight='bold')
+        else:
+            axs[row_idx][2].set_title(t_right, fontsize=14)
+        axs[row_idx][2].axis('off')
+        
+    plt.tight_layout()
+    out_path = os.path.join(args.output_dir, "top_3_suppressed_patches.jpg")
+    plt.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+    print(f"\nAll done! Saved top {len(top_candidates)} patch comparisons to: {out_path}")
 
 
 if __name__ == "__main__":
